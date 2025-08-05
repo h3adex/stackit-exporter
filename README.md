@@ -9,7 +9,7 @@
 ![Tests](https://github.com/h3adex/stackit-exporter/actions/workflows/test-lint.yaml/badge.svg)
 ![Vulnerability Scan](https://github.com/h3adex/stackit-exporter/actions/workflows/vuln-scan.yaml/badge.svg)
 ![Docker](https://github.com/h3adex/stackit-exporter/actions/workflows/build-release.yaml/badge.svg)
-![Go Report Card](https://goreportcard.com/badge/github.com/h3adex/stackit-exporter)
+[![Go Report Card](https://goreportcard.com/badge/github.com/h3adex/stackit-exporter)](https://goreportcard.com/report/github.com/h3adex/stackit-exporter)
 ![Go Version](https://img.shields.io/badge/go-1.24.5-blue)
 
 > **Note:** This project is a community-driven initiative and is not officially associated with STACKIT. It is currently in the early stages of development. Contributions are welcome — feel free to open issues or submit pull requests to help improve the project.
