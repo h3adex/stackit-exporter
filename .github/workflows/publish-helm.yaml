@@ -1,6 +1,9 @@
 name: Release Helm Chart
 
 on:
+  push:
+    branches:
+      - dev
   release:
     types: [ created ]
 
@@ -12,18 +15,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Configure Git
         run: |
           git config user.name "$GITHUB_ACTOR"
           git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+          ls
 
       - name: Run chart-releaser
         uses: helm/chart-releaser-action@v1.7.0
         with:
-          charts_dir: helm/stackit-exporter
+          charts_dir: helm
           config: .github/cr.yaml
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
