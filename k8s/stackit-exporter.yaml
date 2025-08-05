@@ -1,0 +1,87 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    name: monitoring
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: stackit-exporter-secret
+data:
+  STACKIT_PROJECT_ID: ""
+  STACKIT_SERVICE_ACCOUNT_KEY: ""
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stackit-exporter
+  namespace: monitoring
+  labels:
+    app: stackit-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: stackit-exporter
+  template:
+    metadata:
+      labels:
+        app: stackit-exporter
+    spec:
+      containers:
+        - name: exporter
+          imagePullPolicy: Always
+          image: ghcr.io/h3adex/stackit-exporter:main
+          ports:
+            - containerPort: 8080
+              name: http
+          envFrom:
+            - secretRef:
+                name: stackit-exporter-secret
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: stackit-exporter
+  namespace: monitoring
+  labels:
+    app: stackit-exporter
+spec:
+  type: ClusterIP
+  selector:
+    app: stackit-exporter
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: stackit-exporter
+  namespace: monitoring
+  labels:
+    # needs to be adjusted
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      app: stackit-exporter
+  endpoints:
+    - port: http
+      interval: 60s
+      path: /metrics

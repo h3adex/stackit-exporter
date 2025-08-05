@@ -1,0 +1,103 @@
+version: "2"
+run:
+  concurrency: 4
+linters:
+  enable:
+    - bodyclose
+    - depguard
+    - errorlint
+    - forcetypeassert
+    - gochecknoinits
+    - gocritic
+    - gosec
+    - misspell
+    - nakedret
+    - revive
+    - sqlclosecheck
+    - wastedassign
+  disable:
+    - noctx
+    - unparam
+  settings:
+    depguard:
+      # Rules to apply.
+      #
+      # Variables:
+      # - File Variables
+      #   Use an exclamation mark `!` to negate a variable.
+      #   Example: `!$test` matches any file that is not a go test file.
+      #
+      #   `$all` - matches all go files
+      #   `$test` - matches all go test files
+      #
+      # - Package Variables
+      #
+      #   `$gostd` - matches all of go's standard library (Pulled from `GOROOT`)
+      #
+      # Default (applies if no custom rules are defined): Only allow $gostd in all files.
+      rules:
+        # Name of a rule.
+        main:
+          # Defines package matching behavior. Available modes:
+          # - `original`: allowed if it doesn't match the deny list and either matches the allow list or the allow list is empty.
+          # - `strict`: allowed only if it matches the allow list and either doesn't match the deny list or the allow rule is more specific (longer) than the deny rule.
+          # - `lax`: allowed if it doesn't match the deny list or the allow rule is more specific (longer) than the deny rule.
+          # Default: "original"
+          list-mode: lax
+          deny:
+            - pkg: "math/rand$"
+              desc: use math/rand/v2
+    gocritic:
+      disabled-checks:
+        - wrapperFunc
+        - typeDefFirst
+        - ifElseChain
+        - dupImport
+      enabled-tags:
+        - performance
+        - style
+        - experimental
+    gosec:
+      excludes:
+        - G104
+        - G102
+        - G304
+        - G307
+    misspell:
+      locale: US
+    nakedret:
+      max-func-lines: 0
+    revive:
+      severity: error
+      rules:
+        - name: errorf
+        - name: context-as-argument
+        - name: error-return
+        - name: increment-decrement
+        - name: indent-error-flow
+        - name: superfluous-else
+        - name: unused-parameter
+        - name: unreachable-code
+        - name: atomic
+        - name: empty-lines
+        - name: early-return
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/freiheit-com/nmww
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

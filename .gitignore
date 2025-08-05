@@ -1,0 +1,5 @@
+.idea/
+.run/
+.DS_Store
+keys/*
+bin
