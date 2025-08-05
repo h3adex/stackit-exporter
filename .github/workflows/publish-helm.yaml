@@ -24,9 +24,9 @@ jobs:
         uses: azure/setup-helm@v3
 
       - name: Run chart-releaser
-        uses: helm/chart-releaser-action@v1.6.0
+        uses: helm/chart-releaser-action@v1.7.0
         with:
-          charts_dir: helm
+          charts_dir: helm/stackit-exporter
           config: .github/cr.yaml
         env:
           CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
