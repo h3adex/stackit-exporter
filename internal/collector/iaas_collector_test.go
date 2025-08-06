@@ -66,6 +66,7 @@ func TestScrapeIaasAPI_PopulatesMetrics(t *testing.T) {
 	require.NoError(t, testRegistry.Register(reg.MaintenanceStatus))
 	require.NoError(t, testRegistry.Register(reg.ServerStatus))
 	require.NoError(t, testRegistry.Register(reg.ServerPowerStatus))
+	require.NoError(t, testRegistry.Register(reg.ServerLastSeen))
 
 	ctx := context.Background()
 	collector.ScrapeIaasAPI(ctx, client, "", reg)

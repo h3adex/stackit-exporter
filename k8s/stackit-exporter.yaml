@@ -12,6 +12,8 @@ metadata:
 data:
   STACKIT_PROJECT_ID: ""
   STACKIT_SERVICE_ACCOUNT_KEY: ""
+  # Can also be used but is deprecated
+  # STACKIT_SERVICE_ACCOUNT_TOKEN: ""
 ---
 apiVersion: apps/v1
 kind: Deployment

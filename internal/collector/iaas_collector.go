@@ -3,6 +3,7 @@ package collector
 import (
 	"context"
 	"log"
+	"time"
 
 	"github.com/h3adex/stackit-exporter/internal/metrics"
 	"github.com/stackitcloud/stackit-sdk-go/services/iaas"
@@ -31,7 +32,12 @@ func ScrapeIaasAPI(ctx context.Context, client IaasClient, projectID string, reg
 		machineType := *srv.MachineType
 
 		var unixStart, unixEnd float64
+		baseLabels := []string{projectID, serverID, name, zone, machineType}
 
+		now := float64(time.Now().Unix())
+		registry.ServerLastSeen.WithLabelValues(baseLabels...).Set(now)
+
+		// Maintenance Window
 		if mw := srv.MaintenanceWindow; mw != nil {
 			if mw.StartsAt != nil {
 				unixStart = float64(mw.StartsAt.UTC().Unix())
@@ -40,7 +46,6 @@ func ScrapeIaasAPI(ctx context.Context, client IaasClient, projectID string, reg
 				unixEnd = float64(mw.EndsAt.UTC().Unix())
 			}
 
-			baseLabels := []string{projectID, serverID, name, zone, machineType}
 			registry.MaintenanceStart.WithLabelValues(baseLabels...).Set(unixStart)
 			registry.MaintenanceEnd.WithLabelValues(baseLabels...).Set(unixEnd)
 

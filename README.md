@@ -22,6 +22,25 @@ Documentation for each collector is available in the [docs](docs) folder. Refer 
 
 Container images are published via GitHub Packages. Example Kubernetes manifests can be found in the [k8s](./k8s) directory.
 
+```shell
+helm repo add stackit-exporter https://h3adex.github.io/stackit-exporter
+helm repo update
+
+helm install stackit-exporter ./stackit-exporter \
+--namespace monitoring \
+--create-namespace \
+--set secret.name=stackit-exporter-secret \
+--set serviceMonitor.label.release=prometheus-operator
+
+helm install stackit-exporter ./stackit-exporter \
+--namespace monitoring \
+--create-namespace \
+--set stackitCredentials.enabled=true \
+--set stackitCredentials.projectID="XXX-XXX" \
+--set stackitCredentials.serviceAccountKey="...." \
+--set serviceMonitor.label.release=prometheus-operator
+```
+
 ## Contributing
 
 Contributions of all kinds are welcome! Whether it's bug reports, feature suggestions, or code improvements, your input is greatly appreciated.

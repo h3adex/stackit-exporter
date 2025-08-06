@@ -60,3 +60,12 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Check if deprecated access token is provided
+*/}}
+{{- define "stackit-exporter.deprecatedTokenWarning" -}}
+{{- if and .Values.stackitCredentials.enabled .Values.stackitCredentials.serviceAccountAccessToken }}
+WARNING: `stackitCredentials.serviceAccountAccessToken` is deprecated. Please use `serviceAccountKey` instead.
+{{- end -}}
+{{- end }}

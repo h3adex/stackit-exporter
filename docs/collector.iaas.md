@@ -16,6 +16,7 @@ The IaaS collector exposes metrics about STACKIT IaaS servers.
 | `stackit_server_maintenance_status`          | Status of the maintenance window (1 for PLANNED or ONGOING) | Gauge | `project_id`, `server_id`, `name`, `zone`, `machine_type`, `status` |
 | `stackit_server_status`                      | Current server lifecycle status (label: status; always 1)   | Gauge | `project_id`, `server_id`, `name`, `zone`, `status`                 |
 | `stackit_server_power_status`                | Current server power status (label: power_status; always 1) | Gauge | `project_id`, `server_id`, `name`, `zone`, `power_status`           |
+| `stackit_server_last_seen_timestamp`         | Time when the server was last observed (Unix timestamp)     | Gauge | `project_id`, `server_id`, `name`, `zone`, `machine_type`           |
 
 ### Example Metric
 
@@ -23,6 +24,7 @@ The IaaS collector exposes metrics about STACKIT IaaS servers.
 stackit_server_power_status{project_id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",server_id="srv-1",name="web-1",zone="eu01-01",power_status="RUNNING"} 1
 stackit_server_status{project_id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",server_id="srv-1",name="web-1",zone="eu01-01",status="ACTIVE"} 1
 stackit_server_maintenance_status{project_id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",server_id="srv-1",name="web-1",zone="eu01-01",machine_type="c2i.8",status="PLANNED"} 1
+stackit_server_last_seen_timestamp{project_id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",server_id="srv-1",name="web-1",zone="eu01-01",machine_type="c2i.8"} 1.75449502e+09
 ```
 
 ## Useful Queries
@@ -112,19 +114,21 @@ stackit_server_maintenance_status{project_id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx
 ```yaml
 - alert: ServerNotRunning
   expr: stackit_server_power_status{power_status!="RUNNING"} == 1
-  for: 5m
+    and stackit_server_last_seen_timestamp{power_status!="RUNNING"} > time() - 600
+  for: 10m
   labels:
     severity: critical
   annotations:
-    summary: "Server {{ $labels.name }} in zone {{ $labels.zone }} is not running ({{ $labels.power_status }})."
+    summary: "Server {{ $labels.name }} in zone {{ $labels.zone }} is not running ({{ $labels.power_status }}). This alert will only trigger if the server has been seen in the last 10 minutes."
 ```
 
 ```yaml
 - alert: ServerNotActive
   expr: stackit_server_status{status!="ACTIVE"} == 1
+    and stackit_server_last_seen_timestamp{status!="ACTIVE"} > time() - 600
   for: 10m
   labels:
     severity: warning
   annotations:
-    summary: "Server {{ $labels.name }} in zone {{ $labels.zone }} is not in ACTIVE state ({{ $labels.status }})."
+  summary: "Server {{ $labels.name }} in zone {{ $labels.zone }} is not in ACTIVE state ({{ $labels.status }}). This alert will only trigger if the server has been seen in the last 10 minutes."```
 ```

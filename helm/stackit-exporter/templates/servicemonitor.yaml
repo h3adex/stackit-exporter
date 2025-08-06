@@ -3,15 +3,12 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: {{ include "stackit-exporter.fullname" . }}
-  namespace: {{ .Values.namespace }}
   labels:
-{{- range $key, $value := .Values.serviceMonitor.label }}
-    {{ $key }}: {{ $value | quote }}
-{{- end }}
+    {{- toYaml .Values.serviceMonitor.label | nindent 4 }}
 spec:
   selector:
     matchLabels:
-      app: {{ include "stackit-exporter.name" . }}
+      {{- include "stackit-exporter.selectorLabels" . | nindent 6 }}
   endpoints:
     - port: http
       interval: {{ .Values.serviceMonitor.interval }}

@@ -10,6 +10,7 @@ type IaasRegistry struct {
 	MaintenanceStatus *prometheus.GaugeVec
 	ServerStatus      *prometheus.GaugeVec
 	ServerPowerStatus *prometheus.GaugeVec
+	ServerLastSeen    *prometheus.GaugeVec
 }
 
 func NewIaasRegistry() *IaasRegistry {
@@ -38,6 +39,11 @@ func NewIaasRegistry() *IaasRegistry {
 			Name: "stackit_server_power_status",
 			Help: "Current server power status (label: power_status; always 1)",
 		}, []string{"project_id", "server_id", "name", "zone", "power_status"}),
+
+		ServerLastSeen: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "stackit_server_last_seen_timestamp",
+			Help: "Timestamp of the last time the server was seen in the IaaS API",
+		}, []string{"project_id", "server_id", "name", "zone", "machine_type"}),
 	}
 
 	prometheus.MustRegister(
@@ -46,6 +52,7 @@ func NewIaasRegistry() *IaasRegistry {
 		r.MaintenanceStatus,
 		r.ServerStatus,
 		r.ServerPowerStatus,
+		r.ServerLastSeen,
 	)
 
 	return r
@@ -57,6 +64,7 @@ func (r *IaasRegistry) Describe(ch chan<- *prometheus.Desc) {
 	r.MaintenanceStatus.Describe(ch)
 	r.ServerStatus.Describe(ch)
 	r.ServerPowerStatus.Describe(ch)
+	r.ServerLastSeen.Describe(ch)
 }
 
 func (r *IaasRegistry) Collect(ch chan<- prometheus.Metric) {
@@ -65,4 +73,5 @@ func (r *IaasRegistry) Collect(ch chan<- prometheus.Metric) {
 	r.MaintenanceStatus.Collect(ch)
 	r.ServerStatus.Collect(ch)
 	r.ServerPowerStatus.Collect(ch)
+	r.ServerLastSeen.Collect(ch)
 }

@@ -135,20 +135,20 @@ stackit_ske_nodepool_machine_types{project_id="...", cluster_name="...", nodepoo
 
 ```yaml
 - alert: DeprecatedKubernetesVersion
-  expr: stackit_ske_k8s_version{state="deprecated"} == 1
+  expr: stackit_ske_k8s_version{state!="supported"} == 1
   for: 10m
   labels:
     severity: warning
   annotations:
-    summary: "Cluster {{ $labels.cluster_name }} is using a deprecated Kubernetes version: {{ $labels.cluster_version }}."
+    summary: "Cluster {{ $labels.cluster_name }} is using a {{ $labels.state }} Kubernetes version: {{ $labels.cluster_version }}."
 ```
 
 ```yaml
 - alert: DeprecatedMachineImageVersion
-  expr: stackit_ske_nodepool_machine_version{state="deprecated"} == 1
+  expr: stackit_ske_nodepool_machine_version{state!="supported"} == 1
   for: 10m
   labels:
     severity: warning
   annotations:
-    summary: "Nodepool {{ $labels.nodepool_name }} is using a deprecated machine image."
+    summary: "Nodepool {{ $labels.nodepool_name }} is using a {{ $labels.state }} machine image."
 ```

@@ -1,0 +1,13 @@
+{{ include "stackit-exporter.deprecatedTokenWarning" . }}
+
+{{- if .Values.stackitCredentials.enabled }}
+A Secret has been created with your STACKIT credentials.
+Secret name: {{ .Values.secret.name }}
+{{- else }}
+Please ensure the existing Secret named "{{ .Values.secret.name }}" is available in the target namespace.
+{{- end }}
+
+
+{{ if and .Values.stackitCredentials.enabled (not .Values.stackitCredentials.serviceAccountKey) (not .Values.stackitCredentials.serviceAccountAccessToken) }}
+WARNING: stackitCredentials.enabled is true but no credentials were provided! Please set either serviceAccountKey or (deprecated) serviceAccountAccessToken.
+{{ end }}
