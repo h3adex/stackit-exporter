@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"strconv"
+	"time"
 
 	"github.com/h3adex/stackit-exporter/internal/metrics"
 	"github.com/h3adex/stackit-exporter/internal/utils"
@@ -74,6 +75,8 @@ func ScrapeSkeAPI(ctx context.Context, client SkeClient, projectID, region strin
 			for _, zone := range *nodepool.AvailabilityZones {
 				registry.NodePoolAvailabilityZones.WithLabelValues(projectID, *clusterName, *nodepool.Name, zone).Set(1)
 			}
+
+			registry.NodePoolLastSeen.WithLabelValues(projectID, *clusterName, *nodepool.Name).Set(float64(time.Now().Unix()))
 		}
 
 		for _, egressRange := range *cluster.Status.EgressAddressRanges {

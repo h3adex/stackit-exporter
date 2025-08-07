@@ -16,6 +16,7 @@ type SKERegistry struct {
 	NodePoolMachineVersion    *prometheus.GaugeVec
 	NodePoolVolumeSizes       *prometheus.GaugeVec
 	NodePoolAvailabilityZones *prometheus.GaugeVec
+	NodePoolLastSeen          *prometheus.GaugeVec
 	ClusterErrorStatus        *prometheus.GaugeVec
 }
 
@@ -71,6 +72,11 @@ func NewSKERegistry() *SKERegistry {
 			Help: "Availability zones for node pools. Always 1; use labels.",
 		}, []string{"project_id", "cluster_name", "nodepool_name", "zone"}),
 
+		NodePoolLastSeen: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "stackit_ske_nodepool_last_seen",
+			Help: "Last time the node pool was observed/updated (Unix timestamp)",
+		}, []string{"project_id", "cluster_name", "nodepool_name"}),
+
 		EgressAddressRanges: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "stackit_ske_egress_address_ranges",
 			Help: "Egress CIDR address ranges of the cluster. Always 1; use labels.",
@@ -91,6 +97,7 @@ func NewSKERegistry() *SKERegistry {
 		r.NodePoolMachineTypes,
 		r.NodePoolVolumeSizes,
 		r.NodePoolAvailabilityZones,
+		r.NodePoolLastSeen,
 		r.MaintenanceAutoUpdate,
 		r.EgressAddressRanges,
 		r.ClusterCreationTimestamp,
@@ -111,6 +118,7 @@ func (r *SKERegistry) Describe(ch chan<- *prometheus.Desc) {
 	r.NodePoolMachineVersion.Describe(ch)
 	r.NodePoolMachineTypes.Describe(ch)
 	r.NodePoolVolumeSizes.Describe(ch)
+	r.NodePoolLastSeen.Describe(ch)
 	r.NodePoolAvailabilityZones.Describe(ch)
 	r.ClusterErrorStatus.Describe(ch)
 }
@@ -127,5 +135,6 @@ func (r *SKERegistry) Collect(ch chan<- prometheus.Metric) {
 	r.NodePoolMachineTypes.Collect(ch)
 	r.NodePoolVolumeSizes.Collect(ch)
 	r.NodePoolAvailabilityZones.Collect(ch)
+	r.NodePoolLastSeen.Collect(ch)
 	r.ClusterErrorStatus.Collect(ch)
 }
