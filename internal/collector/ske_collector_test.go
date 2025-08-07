@@ -16,10 +16,10 @@ import (
 )
 
 func mockSkeCluster() *ske.ListClustersResponse {
-	creationTime := time.Unix(1744629614, 0) // Mon May 13 2025 13:20:14 UTC
+	creationTime := time.Unix(1744629614, 0) // Example creation time
 
-	start1 := time.Unix(1710000000, 0) // Example maintenance window
-	end1 := time.Unix(1710003600, 0)
+	start1 := time.Unix(1710000000, 0) // Example maintenance window start
+	end1 := time.Unix(1710003600, 0)   // Example maintenance window end
 
 	return &ske.ListClustersResponse{
 		Items: &[]ske.Cluster{
@@ -115,80 +115,87 @@ func TestScrapeSkeAPI_PopulatesMetrics(t *testing.T) {
 	reg := metrics.NewSKERegistry()
 	registry := prometheus.NewRegistry()
 
-	require.NoError(t, registry.Register(reg.K8sVersion))
+	// Register all necessary metrics
+	for _, vec := range reg.ClusterStatus {
+		require.NoError(t, registry.Register(vec))
+	}
+	for _, vec := range reg.K8sVersion {
+		require.NoError(t, registry.Register(vec))
+	}
+	for _, vec := range reg.NodePoolMachineVersion {
+		require.NoError(t, registry.Register(vec))
+	}
+	require.NoError(t, registry.Register(reg.ClusterErrorStatus))
+	require.NoError(t, registry.Register(reg.ClusterCreationTime))
+	require.NoError(t, registry.Register(reg.EgressAddressRanges))
 	require.NoError(t, registry.Register(reg.MaintenanceWindowStart))
 	require.NoError(t, registry.Register(reg.MaintenanceWindowEnd))
-	require.NoError(t, registry.Register(reg.ClusterStatus))
-	require.NoError(t, registry.Register(reg.NodePoolMachineVersion))
 	require.NoError(t, registry.Register(reg.NodePoolMachineTypes))
 	require.NoError(t, registry.Register(reg.NodePoolVolumeSizes))
 	require.NoError(t, registry.Register(reg.NodePoolAvailabilityZones))
 	require.NoError(t, registry.Register(reg.MaintenanceAutoUpdate))
-	require.NoError(t, registry.Register(reg.EgressAddressRanges))
-	require.NoError(t, registry.Register(reg.ClusterCreationTimestamp))
-	require.NoError(t, registry.Register(reg.ClusterErrorStatus))
 
 	ctx := context.Background()
-	projectID := "" // Empty as requested
+	projectID := "" // Example without projectID
 	collector.ScrapeSkeAPI(ctx, client, projectID, "eu01", reg)
 
 	const expected = `
-# HELP stackit_ske_cluster_creation_timestamp Cluster creation time (Unix timestamp)
+# HELP stackit_ske_cluster_creation_timestamp Unix timestamp when cluster was created
 # TYPE stackit_ske_cluster_creation_timestamp gauge
 stackit_ske_cluster_creation_timestamp{cluster_name="ske-mock-01",project_id=""} 1.744629614e+09
-# HELP stackit_ske_cluster_error_status Indicates if a cluster has errors (1 if error exists, otherwise 0)
+# HELP stackit_ske_cluster_error_status 1 if cluster has error
 # TYPE stackit_ske_cluster_error_status gauge
 stackit_ske_cluster_error_status{cluster_name="ske-mock-01",project_id=""} 0
-# HELP stackit_ske_cluster_status Cluster status (1 if status is present). Use label 'status' to identify state such as STATE_HEALTHY.
-# TYPE stackit_ske_cluster_status gauge
-stackit_ske_cluster_status{cluster_name="ske-mock-01",project_id="",status="STATE_HEALTHY"} 1
-# HELP stackit_ske_egress_address_ranges Egress CIDR address ranges of the cluster. Always 1; use labels.
-# TYPE stackit_ske_egress_address_ranges gauge
-stackit_ske_egress_address_ranges{cidr="10.0.0.1/32",cluster_name="ske-mock-01",project_id=""} 1
-# HELP stackit_ske_k8s_version Kubernetes version in use (value always 1). ` + "`state`" + ` = supported/deprecated/preview
-# TYPE stackit_ske_k8s_version gauge
-stackit_ske_k8s_version{cluster_name="ske-mock-01",cluster_version="1.30.10",project_id="",state="supported"} 1
-# HELP stackit_ske_maintenance_autoupdate_enabled Indicates if auto-update is enabled for maintenance
-# TYPE stackit_ske_maintenance_autoupdate_enabled gauge
-stackit_ske_maintenance_autoupdate_enabled{cluster_name="ske-mock-01",project_id=""} 0
-# HELP stackit_ske_maintenance_window_end Scheduled maintenance window end time (Unix timestamp)
-# TYPE stackit_ske_maintenance_window_end gauge
-stackit_ske_maintenance_window_end{cluster_name="ske-mock-01",project_id=""} 1.7100036e+09
-# HELP stackit_ske_maintenance_window_start Scheduled maintenance window start time (Unix timestamp)
-# TYPE stackit_ske_maintenance_window_start gauge
-stackit_ske_maintenance_window_start{cluster_name="ske-mock-01",project_id=""} 1.710000e+09
-# HELP stackit_ske_nodepool_availability_zones Availability zones for node pools. Always 1; use labels.
-# TYPE stackit_ske_nodepool_availability_zones gauge
-stackit_ske_nodepool_availability_zones{cluster_name="ske-mock-01",nodepool_name="default-pool",project_id="",zone="eu01-01"} 1
-stackit_ske_nodepool_availability_zones{cluster_name="ske-mock-01",nodepool_name="default-pool",project_id="",zone="eu01-02"} 1
-stackit_ske_nodepool_availability_zones{cluster_name="ske-mock-01",nodepool_name="gpu-l40s",project_id="",zone="eu01-01"} 1
-# HELP stackit_ske_nodepool_machine_types Machine types used in node pools. Always 1; use labels for details.
-# TYPE stackit_ske_nodepool_machine_types gauge
-stackit_ske_nodepool_machine_types{cluster_name="ske-mock-01",machine_type="c1.4",nodepool_name="default-pool",project_id=""} 1
-stackit_ske_nodepool_machine_types{cluster_name="ske-mock-01",machine_type="n2.14d.g1",nodepool_name="gpu-l40s",project_id=""} 1
-# HELP stackit_ske_nodepool_machine_version Machine image version in use (value always 1). ` + "`state`" + ` = supported/deprecated/preview
-# TYPE stackit_ske_nodepool_machine_version gauge
-stackit_ske_nodepool_machine_version{cluster_name="ske-mock-01",nodepool_name="default-pool",os_name="flatcar",os_version="4152.2.3",project_id="",state="supported"} 1
-stackit_ske_nodepool_machine_version{cluster_name="ske-mock-01",nodepool_name="gpu-l40s",os_name="ubuntu",os_version="2204.20250516.0",project_id="",state="supported"} 1
-# HELP stackit_ske_nodepool_volume_sizes_gb Volume sizes in the node pools (in GB)
-# TYPE stackit_ske_nodepool_volume_sizes_gb gauge
-stackit_ske_nodepool_volume_sizes_gb{cluster_name="ske-mock-01",nodepool_name="default-pool",project_id="",volume_size="50"} 50
-stackit_ske_nodepool_volume_sizes_gb{cluster_name="ske-mock-01",nodepool_name="gpu-l40s",project_id="",volume_size="100"} 100
+# HELP stackit_ske_cluster_status_state_healthy Cluster status: STATE_HEALTHY
+# TYPE stackit_ske_cluster_status_state_healthy gauge
+stackit_ske_cluster_status_state_healthy{cluster_name="ske-mock-01",project_id=""} 1
+# HELP stackit_ske_k8s_version_supported Kubernetes version state: supported
+# TYPE stackit_ske_k8s_version_supported gauge
+stackit_ske_k8s_version_supported{cluster_name="ske-mock-01",k8s_version="1.30.10",project_id=""} 1
+# HELP stackit_ske_cluster_maintenance_autoupdate_enabled 1 if autoupdate is enabled
+# TYPE stackit_ske_cluster_maintenance_autoupdate_enabled gauge
+stackit_ske_cluster_maintenance_autoupdate_enabled{cluster_name="ske-mock-01",project_id=""} 0
+# HELP stackit_ske_cluster_maintenance_end_timestamp End time of maintenance window
+# TYPE stackit_ske_cluster_maintenance_end_timestamp gauge
+stackit_ske_cluster_maintenance_end_timestamp{cluster_name="ske-mock-01",project_id=""} 1.7100036e+09
+# HELP stackit_ske_cluster_maintenance_start_timestamp Start time of maintenance window
+# TYPE stackit_ske_cluster_maintenance_start_timestamp gauge
+stackit_ske_cluster_maintenance_start_timestamp{cluster_name="ske-mock-01",project_id=""} 1.71e+09
+# HELP stackit_ske_cluster_egress_address_range Egress IP range used by cluster
+# TYPE stackit_ske_cluster_egress_address_range gauge
+stackit_ske_cluster_egress_address_range{cidr="10.0.0.1/32",cluster_name="ske-mock-01",project_id=""} 1
+# HELP stackit_ske_nodepool_availability_zone Availability zones configured
+# TYPE stackit_ske_nodepool_availability_zone gauge
+stackit_ske_nodepool_availability_zone{cluster_name="ske-mock-01",nodepool_name="default-pool",project_id="",zone="eu01-01"} 1
+stackit_ske_nodepool_availability_zone{cluster_name="ske-mock-01",nodepool_name="default-pool",project_id="",zone="eu01-02"} 1
+stackit_ske_nodepool_availability_zone{cluster_name="ske-mock-01",nodepool_name="gpu-l40s",project_id="",zone="eu01-01"} 1
+# HELP stackit_ske_nodepool_machine_type Type of machine used
+# TYPE stackit_ske_nodepool_machine_type gauge
+stackit_ske_nodepool_machine_type{cluster_name="ske-mock-01",machine_type="c1.4",nodepool_name="default-pool",project_id=""} 1
+stackit_ske_nodepool_machine_type{cluster_name="ske-mock-01",machine_type="n2.14d.g1",nodepool_name="gpu-l40s",project_id=""} 1
+# HELP stackit_ske_nodepool_machine_version_supported Machine image state: supported
+# TYPE stackit_ske_nodepool_machine_version_supported gauge
+stackit_ske_nodepool_machine_version_supported{cluster_name="ske-mock-01",image="flatcar",nodepool_name="default-pool",project_id="",version="4152.2.3"} 1
+stackit_ske_nodepool_machine_version_supported{cluster_name="ske-mock-01",image="ubuntu",nodepool_name="gpu-l40s",project_id="",version="2204.20250516.0"} 1
+# HELP stackit_ske_nodepool_volume_size_gb Volume size per node
+# TYPE stackit_ske_nodepool_volume_size_gb gauge
+stackit_ske_nodepool_volume_size_gb{cluster_name="ske-mock-01",nodepool_name="default-pool",project_id="",size_gb="50"} 50
+stackit_ske_nodepool_volume_size_gb{cluster_name="ske-mock-01",nodepool_name="gpu-l40s",project_id="",size_gb="100"} 100
 `
 
 	err := testutil.GatherAndCompare(registry, strings.NewReader(expected),
 		"stackit_ske_cluster_creation_timestamp",
 		"stackit_ske_cluster_error_status",
-		"stackit_ske_cluster_status",
-		"stackit_ske_egress_address_ranges",
-		"stackit_ske_k8s_version",
-		"stackit_ske_maintenance_window_start",
-		"stackit_ske_maintenance_window_end",
-		"stackit_ske_maintenance_autoupdate_enabled",
-		"stackit_ske_nodepool_availability_zones",
-		"stackit_ske_nodepool_machine_types",
-		"stackit_ske_nodepool_machine_version",
-		"stackit_ske_nodepool_volume_sizes_gb",
+		"stackit_ske_cluster_status_state_healthy",
+		"stackit_ske_k8s_version_supported",
+		"stackit_ske_cluster_maintenance_autoupdate_enabled",
+		"stackit_ske_cluster_maintenance_end_timestamp",
+		"stackit_ske_cluster_maintenance_start_timestamp",
+		"stackit_ske_cluster_egress_address_range",
+		"stackit_ske_nodepool_availability_zone",
+		"stackit_ske_nodepool_machine_type",
+		"stackit_ske_nodepool_machine_version_supported",
+		"stackit_ske_nodepool_volume_size_gb",
 	)
 
 	require.NoError(t, err)

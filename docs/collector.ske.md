@@ -11,22 +11,22 @@ The SKE collector exports metrics related to Kubernetes clusters, node pools, ma
 
 ## Metrics
 
-| Name                                               | Description                                                                                          | Type  | Labels                                                            |
-|----------------------------------------------------|------------------------------------------------------------------------------------------------------|-------|-------------------------------------------------------------------|
-| stackit_ske_cluster_creation_timestamp             | Cluster creation time (Unix timestamp)                                                               | Gauge | `project_id`, `cluster_name`                                      |
-| stackit_ske_cluster_maintenance_autoupdate_enabled | Indicates if auto-update is enabled for maintenance                                                  | Gauge | `project_id`, `cluster_name`                                      |
-| stackit_ske_cluster_maintenance_start_timestamp    | Scheduled maintenance window start time (Unix timestamp)                                             | Gauge | `project_id`, `cluster_name`                                      |
-| stackit_ske_cluster_maintenance_end_timestamp      | Scheduled maintenance window end time (Unix timestamp)                                               | Gauge | `project_id`, `cluster_name`                                      |
-| stackit_ske_cluster_error_status                   | Indicates if a cluster has errors (`1` if error exists)                                              | Gauge | `project_id`, `cluster_name`                                      |
-| stackit_ske_cluster_status_state_<state>           | Binary `Gauge` per cluster status (`healthy`, `unhealthy`, `hibernated`, `unspecified`, `deleting` ) | Gauge | `project_id`, `cluster_name`                                      |
-| stackit_ske_cluster_last_seen_timestamp            | Time when the cluster was last seen by the exporter (Unix timestamp)                                 | Gauge | `project_id`, `cluster_name`                                      |
-| stackit_ske_k8s_version_<state>                    | Kubernetes version state (`supported`, `deprecated`, `preview`) as binary gauge                      | Gauge | `project_id`, `cluster_name`, `k8s_version`                       |
-| stackit_ske_nodepool_machine_type                  | Machine types used in node pools                                                                     | Gauge | `project_id`, `cluster_name`, `nodepool_name`, `machine_type`     |
-| stackit_ske_nodepool_machine_version_<state>       | Nodepool machine image version state (`supported`, `deprecated`, `preview`) as binary gauge          | Gauge | `project_id`, `cluster_name`, `nodepool_name`, `image`, `version` |
-| stackit_ske_nodepool_volume_size_gb                | Volume sizes in the node pools (in GB)                                                               | Gauge | `project_id`, `cluster_name`, `nodepool_name`, `size_gb`          |
-| stackit_ske_nodepool_availability_zone             | Availability zones for node pools                                                                    | Gauge | `project_id`, `cluster_name`, `nodepool_name`, `zone`             |
-| stackit_ske_nodepool_last_seen_timestamp           | Time when a node pool was last observed by the exporter (Unix timestamp)                             | Gauge | `project_id`, `cluster_name`, `nodepool_name`                     |
-| stackit_ske_cluster_egress_address_range           | Egress CIDR address ranges used by the cluster. Always 1. Use `cidr` for value context               | Gauge | `project_id`, `cluster_name`, `cidr`                              |
+| Name                                               | Description                                                                                          | Type  | Labels                                                             |
+|----------------------------------------------------|------------------------------------------------------------------------------------------------------|-------|--------------------------------------------------------------------|
+| stackit_ske_cluster_creation_timestamp             | Cluster creation time (Unix timestamp)                                                               | Gauge | `project_id`, `cluster_name`                                       |
+| stackit_ske_cluster_maintenance_autoupdate_enabled | Indicates if auto-update is enabled for maintenance                                                  | Gauge | `project_id`, `cluster_name`                                       |
+| stackit_ske_cluster_maintenance_start_timestamp    | Scheduled maintenance window start time (Unix timestamp)                                             | Gauge | `project_id`, `cluster_name`                                       |
+| stackit_ske_cluster_maintenance_end_timestamp      | Scheduled maintenance window end time (Unix timestamp)                                               | Gauge | `project_id`, `cluster_name`                                       |
+| stackit_ske_cluster_error_status                   | Indicates if a cluster has errors (`1` if error exists)                                              | Gauge | `project_id`, `cluster_name`                                       |
+| stackit_ske_cluster_status_state_`state`           | Binary `Gauge` per cluster status (`healthy`, `unhealthy`, `hibernated`, `unspecified`, `deleting` ) | Gauge | `project_id`, `cluster_name`                                       |
+| stackit_ske_cluster_last_seen_timestamp            | Time when the cluster was last seen by the exporter (Unix timestamp)                                 | Gauge | `project_id`, `cluster_name`                                       |
+| stackit_ske_k8s_version_`state`                    | Kubernetes version state (`supported`, `deprecated`, `preview`) as binary gauge                      | Gauge | `project_id`, `cluster_name`, `k8s_version`                        |
+| stackit_ske_nodepool_machine_type                  | Machine types used in node pools                                                                     | Gauge | `project_id`, `cluster_name`, `nodepool_name`, `machine_type`      |
+| stackit_ske_nodepool_machine_version_`state`       | Nodepool machine image version state (`supported`, `deprecated`, `preview`) as binary gauge          | Gauge | `project_id`, `cluster_name`, `nodepool_name`,  `image`, `version` |
+| stackit_ske_nodepool_volume_size_gb                | Volume sizes in the node pools (in GB)                                                               | Gauge | `project_id`, `cluster_name`, `nodepool_name`, `size_gb`           |
+| stackit_ske_nodepool_availability_zone             | Availability zones for node pools                                                                    | Gauge | `project_id`, `cluster_name`, `nodepool_name`, `zone`              |
+| stackit_ske_nodepool_last_seen_timestamp           | Time when a node pool was last observed by the exporter (Unix timestamp)                             | Gauge | `project_id`, `cluster_name`, `nodepool_name`                      |
+| stackit_ske_cluster_egress_address_range           | Egress CIDR address ranges used by the cluster. Always 1. Use `cidr` for value context               | Gauge | `project_id`, `cluster_name`, `cidr`                               |
 
 ---
 
@@ -144,4 +144,14 @@ stackit_ske_nodepool_last_seen_timestamp{project_id="abc", cluster_name="f13-edu
   annotations:
     summary: "Deprecated machine image on nodepool {{ $labels.nodepool_name }}"
     description: "Nodepool {{ $labels.nodepool_name }} in cluster {{ $labels.cluster_name }} is using a deprecated machine image '{{ $labels.version }}'."
+
+- alert: SKEClusterErrorActive
+  expr: (stackit_ske_cluster_status_error == 1)
+    and (time() - stackit_ske_cluster_last_seen_timestamp < 300)
+  for: 5m
+  labels:
+    severity: critical
+  annotations:
+    summary: "SKE cluster {{ $labels.cluster_name }} is in ERROR state"
+    description: "Cluster {{ $labels.cluster_name }} (project {{ $labels.project_id }}) is in an ERROR state and was seen within the last 5 minutes."
 ```
