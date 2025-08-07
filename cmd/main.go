@@ -10,7 +10,6 @@ import (
 	"github.com/h3adex/stackit-exporter/internal/collector"
 	"github.com/h3adex/stackit-exporter/internal/config"
 	"github.com/h3adex/stackit-exporter/internal/metrics"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	sdkConfig "github.com/stackitcloud/stackit-sdk-go/core/config"
 	"github.com/stackitcloud/stackit-sdk-go/services/iaas"
@@ -79,14 +78,10 @@ func main() {
 
 	manager := NewManager(ctx, cfg.ProjectID, cfg.Region, iaasClient, skeClient)
 
-	reg := prometheus.NewRegistry()
-	reg.MustRegister(manager.iaasRegistry)
-	reg.MustRegister(manager.skeRegistry)
-
 	go manager.Run(10 * time.Second)
 
 	// Set up HTTP handlers for metrics and health checks
-	http.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
+	http.Handle("/metrics", promhttp.Handler())
 	http.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
