@@ -83,52 +83,55 @@ stackit_server_last_seen_timestamp{project_id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxx
 
 ```yaml
 - alert: ServerInMaintenance
-  expr: stackit_server_maintenance_status{status=~"PLANNED|ONGOING"} == 1
+  expr: (stackit_server_maintenance_status{status="ONGOING"} == 1)
   for: 10m
   labels:
     severity: warning
   annotations:
-    summary: "Server {{ $labels.name }} in zone {{ $labels.zone }} is currently in maintenance ({{ $labels.status }})."
+    summary: "Server {{ $labels.name }} (zone: {{ $labels.zone }}) is under maintenance."
+    description: "Server {{ $labels.name }} is in '{{ $labels.status }}' maintenance status for more than 10 minutes."
 ```
 
 ```yaml
 - alert: MaintenanceWindowScheduled
-  expr: stackit_server_maintenance_status{status="PLANNED"} == 1
+  expr: (stackit_server_maintenance_status{status="PLANNED"} == 1)
   for: 1m
   labels:
     severity: info
   annotations:
-    summary: "Maintenance has been scheduled for server {{ $labels.name }} in zone {{ $labels.zone }}."
+    summary: "Server {{ $labels.name }} has scheduled a maintenance in zone {{ $labels.zone }}."
+    description: "The maintenance for server {{ $labels.name }} is scheduled and currently in 'PLANNED' state."
 ```
 
 ```yaml
-- alert: MaintenanceWindowStarted
-  expr: stackit_server_maintenance_status{status="ONGOING"} == 1
-  for: 1m
+- alert: ServerMaintenanceStartTimeChanged
+  expr: changes(stackit_server_maintenance_start_timestamp[15m]) > 0
+  for: 0m
   labels:
-    severity: info
+  severity: info
   annotations:
-    summary: "Maintenance has started for server {{ $labels.name }} in zone {{ $labels.zone }}."
+  summary: "Maintenance start time changed for server {{ $labels.name }}."
+  description: "The maintenance start timestamp for server {{ $labels.name }} in zone {{ $labels.zone }} changed in the last 15 minutes."
 ```
 
 ```yaml
 - alert: ServerNotRunning
-  expr: stackit_server_power_status{power_status!="RUNNING"} == 1
-    and stackit_server_last_seen_timestamp{power_status!="RUNNING"} > time() - 600
+  expr: (stackit_server_power_status{power_status!="RUNNING"} == 1 and stackit_server_last_seen_timestamp{power_status!="RUNNING"} > time() - 600)
   for: 10m
   labels:
     severity: critical
   annotations:
-    summary: "Server {{ $labels.name }} in zone {{ $labels.zone }} is not running ({{ $labels.power_status }}). This alert will only trigger if the server has been seen in the last 10 minutes."
+    summary: "Server {{ $labels.name }} is not running ({{ $labels.power_status }})."
+    description: "Server {{ $labels.name }} in zone {{ $labels.zone }} has not been RUNNING for 10+ minutes, but is still actively reporting metrics."
 ```
 
 ```yaml
 - alert: ServerNotActive
-  expr: stackit_server_status{status!="ACTIVE"} == 1
-    and stackit_server_last_seen_timestamp{status!="ACTIVE"} > time() - 600
+  expr: (stackit_server_status{status!="ACTIVE"} == 1 and stackit_server_last_seen_timestamp{status!="ACTIVE"} > time() - 600)
   for: 10m
   labels:
     severity: warning
   annotations:
-  summary: "Server {{ $labels.name }} in zone {{ $labels.zone }} is not in ACTIVE state ({{ $labels.status }}). This alert will only trigger if the server has been seen in the last 10 minutes."```
+    summary: "Server {{ $labels.name }} is not ACTIVE ({{ $labels.status }})."
+    description: "Server {{ $labels.name }} in zone {{ $labels.zone }} has been in '{{ $labels.status }}' for at least 10 minutes and is still reporting."
 ```

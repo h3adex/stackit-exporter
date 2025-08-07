@@ -26,13 +26,13 @@ Container images are published via GitHub Packages. Example Kubernetes manifests
 helm repo add stackit-exporter https://h3adex.github.io/stackit-exporter
 helm repo update
 
-helm install stackit-exporter ./stackit-exporter \
+helm install stackit-exporter stackit-exporter/stackit-exporter \
 --namespace monitoring \
 --create-namespace \
 --set secret.name=stackit-exporter-secret \
 --set serviceMonitor.label.release=prometheus-operator
 
-helm install stackit-exporter ./stackit-exporter \
+helm install stackit-exporter stackit-exporter/stackit-exporter \
 --namespace monitoring \
 --create-namespace \
 --set stackitCredentials.enabled=true \
