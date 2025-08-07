@@ -8,7 +8,8 @@
 # STACKIT Exporter
 ![Tests](https://github.com/h3adex/stackit-exporter/actions/workflows/test-lint.yaml/badge.svg)
 ![Vulnerability Scan](https://github.com/h3adex/stackit-exporter/actions/workflows/vuln-scan.yaml/badge.svg)
-![Docker](https://github.com/h3adex/stackit-exporter/actions/workflows/build-release.yaml/badge.svg)
+![Build](https://github.com/h3adex/stackit-exporter/actions/workflows/build-release.yaml/badge.svg)
+![Helm](https://github.com/h3adex/stackit-exporter/actions/workflows/publish-helm.yaml/badge.svg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/h3adex/stackit-exporter)](https://goreportcard.com/report/github.com/h3adex/stackit-exporter)
 ![Go Version](https://img.shields.io/badge/go-1.24.5-blue)
 
