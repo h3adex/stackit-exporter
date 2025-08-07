@@ -23,80 +23,92 @@ func ScrapeSkeAPI(ctx context.Context, client SkeClient, projectID, region strin
 		return
 	}
 
-	clusterOptions, err := client.ListProviderOptions(ctx, region).Execute()
+	options, err := client.ListProviderOptions(ctx, region).Execute()
 	if err != nil {
-		log.Printf("failed to fetch Kubernetes clusters option: %v", err)
+		log.Printf("failed to fetch Kubernetes options: %v", err)
 		return
 	}
 
 	for _, cluster := range *resp.Items {
-		clusterVersionState := ""
-		for _, option := range *clusterOptions.KubernetesVersions {
-			if *cluster.Kubernetes.Version == *option.Version {
-				clusterVersionState = *option.State
+		labels := map[string]string{
+			"project_id":   projectID,
+			"cluster_name": *cluster.Name,
+		}
+
+		// Cluster status
+		metrics.SetOneHotStatus(registry.ClusterStatus, string(*cluster.Status.Aggregated), labels)
+
+		// Error / health
+		errorValue := 0.0
+		if cluster.Status.Errors != nil && len(*cluster.Status.Errors) > 0 {
+			errorValue = 1.0
+		}
+		registry.ClusterErrorStatus.With(labels).Set(errorValue)
+
+		// Creation time & last seen
+		registry.ClusterCreationTime.With(labels).Set(float64(cluster.Status.CreationTime.UTC().Unix()))
+		registry.ClusterLastSeen.With(labels).Set(float64(time.Now().Unix()))
+
+		// Maintenance info
+		registry.MaintenanceAutoUpdate.With(labels).Set(utils.BoolToFloat(*cluster.Maintenance.AutoUpdate.KubernetesVersion))
+		registry.MaintenanceWindowStart.With(labels).Set(float64(cluster.Maintenance.TimeWindow.Start.UTC().Unix()))
+		registry.MaintenanceWindowEnd.With(labels).Set(float64(cluster.Maintenance.TimeWindow.End.UTC().Unix()))
+
+		// Kubernetes version support
+		k8sVersion := *cluster.Kubernetes.Version
+		k8sState := ""
+		for _, kv := range *options.KubernetesVersions {
+			if *kv.Version == k8sVersion {
+				k8sState = *kv.State
 			}
 		}
-		clusterName := cluster.Name
+		versionLabels := map[string]string{
+			"project_id":   projectID,
+			"cluster_name": *cluster.Name,
+			"k8s_version":  k8sVersion,
+		}
+		metrics.SetOneHotStatus(registry.K8sVersion, k8sState, versionLabels)
 
-		// Set Kubernetes version metric
-		registry.K8sVersion.WithLabelValues(projectID, *clusterName, *cluster.Kubernetes.Version, clusterVersionState).Set(1)
+		// Egress Ranges
+		for _, r := range *cluster.Status.EgressAddressRanges {
+			registry.EgressAddressRanges.WithLabelValues(projectID, *cluster.Name, r).Set(1)
+		}
 
-		// Set Maintenance auto-update status
-		registry.MaintenanceAutoUpdate.WithLabelValues(projectID, *clusterName).Set(utils.BoolToFloat(*cluster.Maintenance.AutoUpdate.KubernetesVersion))
-
-		// Set Maintenance window metrics
-		registry.MaintenanceWindowStart.WithLabelValues(projectID, *clusterName).Set(float64(cluster.Maintenance.TimeWindow.Start.UTC().Unix()))
-		registry.MaintenanceWindowEnd.WithLabelValues(projectID, *clusterName).Set(float64(cluster.Maintenance.TimeWindow.End.UTC().Unix()))
-
-		// Set Cluster status metrics
-		registry.ClusterStatus.WithLabelValues(projectID, *clusterName, string(*cluster.Status.Aggregated)).Set(statusToGaugeValue(*cluster.Status.Aggregated))
-		registry.ClusterCreationTimestamp.WithLabelValues(projectID, *clusterName).Set(float64(cluster.Status.CreationTime.UTC().Unix()))
-
-		// Node pool metrics
-		for _, nodepool := range *cluster.Nodepools {
-			// parse the current state of the machine version
-			machineVersionState := ""
-			machineOsName := ""
-			machineOsVersion := ""
-			for _, image := range *clusterOptions.MachineImages {
-				for _, version := range *image.Versions {
-					if *nodepool.Machine.Image.Version == *version.Version {
-						machineVersionState = *version.State
-						machineOsName = *image.Name
-						machineOsVersion = *version.Version
+		// Node pools
+		for _, np := range *cluster.Nodepools {
+			// Machine image info
+			image := *np.Machine.Image
+			imageState := ""
+			osName, osVersion := "", ""
+			for _, img := range *options.MachineImages {
+				for _, ver := range *img.Versions {
+					if *ver.Version == *image.Version {
+						imageState = *ver.State
+						osName = *img.Name
+						osVersion = *ver.Version
 					}
 				}
 			}
+			imgLabels := map[string]string{
+				"project_id":    projectID,
+				"cluster_name":  *cluster.Name,
+				"nodepool_name": *np.Name,
+				"image":         osName,
+				"version":       osVersion,
+			}
+			metrics.SetOneHotStatus(registry.NodePoolMachineVersion, imageState, imgLabels)
 
-			registry.NodePoolMachineVersion.WithLabelValues(projectID, *clusterName, *nodepool.Name, machineOsName, machineOsVersion, machineVersionState).Set(1)
-			registry.NodePoolMachineTypes.WithLabelValues(projectID, *clusterName, *nodepool.Name, *nodepool.Machine.Type).Set(1)
-			registry.NodePoolVolumeSizes.WithLabelValues(projectID, *clusterName, *nodepool.Name, strconv.Itoa(int(*nodepool.Volume.Size))).Set(float64(*nodepool.Volume.Size))
+			// Machine type & volume
+			registry.NodePoolMachineTypes.WithLabelValues(projectID, *cluster.Name, *np.Name, *np.Machine.Type).Set(1)
+			registry.NodePoolVolumeSizes.WithLabelValues(projectID, *cluster.Name, *np.Name, strconv.Itoa(int(*np.Volume.Size))).Set(float64(*np.Volume.Size))
 
-			for _, zone := range *nodepool.AvailabilityZones {
-				registry.NodePoolAvailabilityZones.WithLabelValues(projectID, *clusterName, *nodepool.Name, zone).Set(1)
+			// Zones
+			for _, zone := range *np.AvailabilityZones {
+				registry.NodePoolAvailabilityZones.WithLabelValues(projectID, *cluster.Name, *np.Name, zone).Set(1)
 			}
 
-			registry.NodePoolLastSeen.WithLabelValues(projectID, *clusterName, *nodepool.Name).Set(float64(time.Now().Unix()))
+			// Last seen
+			registry.NodePoolLastSeen.WithLabelValues(projectID, *cluster.Name, *np.Name).Set(float64(time.Now().Unix()))
 		}
-
-		for _, egressRange := range *cluster.Status.EgressAddressRanges {
-			registry.EgressAddressRanges.WithLabelValues(projectID, *clusterName, egressRange).Set(1)
-		}
-
-		hasErrors := 0
-		if cluster.Status.Errors != nil && len(*cluster.Status.Errors) > 0 {
-			hasErrors = 1
-		}
-		registry.ClusterErrorStatus.WithLabelValues(projectID, *clusterName).Set(float64(hasErrors))
-	}
-}
-
-func statusToGaugeValue(status ske.ClusterStatusState) float64 {
-	switch status {
-	case ske.CLUSTERSTATUSSTATE_HEALTHY:
-		return 1
-	// if not healthy status return 0
-	default:
-		return 0
 	}
 }

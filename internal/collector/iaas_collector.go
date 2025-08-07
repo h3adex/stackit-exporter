@@ -22,50 +22,45 @@ func ScrapeIaasAPI(ctx context.Context, client IaasClient, projectID string, reg
 
 	for i := range *resp.Items {
 		srv := &(*resp.Items)[i]
+
 		if srv.Id == nil || srv.Name == nil || srv.AvailabilityZone == nil || srv.MachineType == nil {
 			continue
 		}
 
-		serverID := *srv.Id
-		name := *srv.Name
-		zone := *srv.AvailabilityZone
-		machineType := *srv.MachineType
-
-		var unixStart, unixEnd float64
-		baseLabels := []string{projectID, serverID, name, zone, machineType}
-
-		now := float64(time.Now().Unix())
-		registry.ServerLastSeen.WithLabelValues(baseLabels...).Set(now)
-
-		// Maintenance Window
-		if mw := srv.MaintenanceWindow; mw != nil {
-			if mw.StartsAt != nil {
-				unixStart = float64(mw.StartsAt.UTC().Unix())
-			}
-			if mw.EndsAt != nil {
-				unixEnd = float64(mw.EndsAt.UTC().Unix())
-			}
-
-			registry.MaintenanceStart.WithLabelValues(baseLabels...).Set(unixStart)
-			registry.MaintenanceEnd.WithLabelValues(baseLabels...).Set(unixEnd)
-
-			if mw.Status != nil {
-				registry.MaintenanceStatus.WithLabelValues(
-					projectID, serverID, name, zone, machineType, *mw.Status,
-				).Set(1)
-			}
+		labels := map[string]string{
+			"project_id":   projectID,
+			"server_id":    *srv.Id,
+			"name":         *srv.Name,
+			"zone":         *srv.AvailabilityZone,
+			"machine_type": *srv.MachineType,
 		}
 
+		var (
+			status            = ""
+			powerStatus       = ""
+			maintenanceStatus = ""
+			maintenanceEnd    time.Time
+			maintenanceStart  time.Time
+		)
+
 		if srv.Status != nil {
-			registry.ServerStatus.WithLabelValues(
-				projectID, serverID, name, zone, *srv.Status,
-			).Set(1)
+			status = *srv.Status
 		}
 
 		if srv.PowerStatus != nil {
-			registry.ServerPowerStatus.WithLabelValues(
-				projectID, serverID, name, zone, *srv.PowerStatus,
-			).Set(1)
+			powerStatus = *srv.PowerStatus
 		}
+
+		if mw := srv.MaintenanceWindow; mw != nil {
+			maintenanceStatus = *mw.Status
+			if mw.StartsAt != nil {
+				maintenanceStart = mw.StartsAt.UTC()
+			}
+			if mw.EndsAt != nil {
+				maintenanceEnd = mw.EndsAt.UTC()
+			}
+		}
+
+		registry.SetServerState(status, powerStatus, maintenanceStatus, labels, maintenanceStart, maintenanceEnd)
 	}
 }

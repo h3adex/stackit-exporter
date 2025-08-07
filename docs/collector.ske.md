@@ -1,50 +1,56 @@
 # SKE Collector
 
-The SKE collector exports metrics related to Kubernetes clusters, node pools, maintenance configuration, and runtime status.
+The SKE collector exports metrics related to Kubernetes clusters, node pools, maintenance configuration, and runtime status in STACKIT.
 
 |                     |                |
 |---------------------|----------------|
 | Metric name prefix  | `stackit_ske_` |
 | Enabled by default? | Yes            |
 
+---
+
 ## Metrics
 
-| Name                                       | Description                                                                                          | Type  | Labels                                                              |
-|--------------------------------------------|------------------------------------------------------------------------------------------------------|-------|---------------------------------------------------------------------|
-| stackit_ske_k8s_version                    | Kubernetes version in use (value always 1). `state` = supported/deprecated/preview                   | Gauge | project_id, cluster_name, cluster_version, state                    |
-| stackit_ske_cluster_status                 | Cluster status (1 if status is present). Use label 'status' to identify state such as STATE_HEALTHY. | Gauge | project_id, cluster_name, status                                    |
-| stackit_ske_cluster_creation_timestamp     | Cluster creation time (Unix timestamp)                                                               | Gauge | project_id, cluster_name                                            |
-| stackit_ske_maintenance_autoupdate_enabled | Indicates if auto-update is enabled for maintenance                                                  | Gauge | project_id, cluster_name                                            |
-| stackit_ske_maintenance_window_start       | Scheduled maintenance window start time (Unix timestamp)                                             | Gauge | project_id, cluster_name                                            |
-| stackit_ske_maintenance_window_end         | Scheduled maintenance window end time (Unix timestamp)                                               | Gauge | project_id, cluster_name                                            |
-| stackit_ske_nodepool_machine_types         | Machine types used in node pools. Always 1; use labels for details.                                  | Gauge | project_id, cluster_name, nodepool_name, machine_type               |
-| stackit_ske_nodepool_machine_version       | Machine image version in use (value always 1). `state` = supported/deprecated/preview                | Gauge | project_id, cluster_name, nodepool_name, os_name, os_version, state |
-| stackit_ske_nodepool_volume_sizes_gb       | Volume sizes in the node pools (in GB)                                                               | Gauge | project_id, cluster_name, nodepool_name, volume_size                |
-| stackit_ske_nodepool_availability_zones    | Availability zones for node pools. Always 1; use labels.                                             | Gauge | project_id, cluster_name, nodepool_name, zone                       |
-| stackit_ske_nodepool_last_seen             | Last time the node pool was observed/updated (Unix timestamp)                                        | Gauge | project_id, cluster_name, nodepool_name                             |
-| stackit_ske_egress_address_ranges          | Egress CIDR address ranges of the cluster. Always 1; use labels.                                     | Gauge | project_id, cluster_name, cidr                                      |
-| stackit_ske_cluster_error_status           | Indicates if a cluster has errors (1 if error exists, otherwise 0)                                   | Gauge | project_id, cluster_name                                            |
+| Name                                               | Description                                                                                          | Type  | Labels                                                            |
+|----------------------------------------------------|------------------------------------------------------------------------------------------------------|-------|-------------------------------------------------------------------|
+| stackit_ske_cluster_creation_timestamp             | Cluster creation time (Unix timestamp)                                                               | Gauge | `project_id`, `cluster_name`                                      |
+| stackit_ske_cluster_maintenance_autoupdate_enabled | Indicates if auto-update is enabled for maintenance                                                  | Gauge | `project_id`, `cluster_name`                                      |
+| stackit_ske_cluster_maintenance_start_timestamp    | Scheduled maintenance window start time (Unix timestamp)                                             | Gauge | `project_id`, `cluster_name`                                      |
+| stackit_ske_cluster_maintenance_end_timestamp      | Scheduled maintenance window end time (Unix timestamp)                                               | Gauge | `project_id`, `cluster_name`                                      |
+| stackit_ske_cluster_error_status                   | Indicates if a cluster has errors (`1` if error exists)                                              | Gauge | `project_id`, `cluster_name`                                      |
+| stackit_ske_cluster_status_state_<state>           | Binary `Gauge` per cluster status (`healthy`, `unhealthy`, `hibernated`, `unspecified`, `deleting` ) | Gauge | `project_id`, `cluster_name`                                      |
+| stackit_ske_cluster_last_seen_timestamp            | Time when the cluster was last seen by the exporter (Unix timestamp)                                 | Gauge | `project_id`, `cluster_name`                                      |
+| stackit_ske_k8s_version_<state>                    | Kubernetes version state (`supported`, `deprecated`, `preview`) as binary gauge                      | Gauge | `project_id`, `cluster_name`, `k8s_version`                       |
+| stackit_ske_nodepool_machine_type                  | Machine types used in node pools                                                                     | Gauge | `project_id`, `cluster_name`, `nodepool_name`, `machine_type`     |
+| stackit_ske_nodepool_machine_version_<state>       | Nodepool machine image version state (`supported`, `deprecated`, `preview`) as binary gauge          | Gauge | `project_id`, `cluster_name`, `nodepool_name`, `image`, `version` |
+| stackit_ske_nodepool_volume_size_gb                | Volume sizes in the node pools (in GB)                                                               | Gauge | `project_id`, `cluster_name`, `nodepool_name`, `size_gb`          |
+| stackit_ske_nodepool_availability_zone             | Availability zones for node pools                                                                    | Gauge | `project_id`, `cluster_name`, `nodepool_name`, `zone`             |
+| stackit_ske_nodepool_last_seen_timestamp           | Time when a node pool was last observed by the exporter (Unix timestamp)                             | Gauge | `project_id`, `cluster_name`, `nodepool_name`                     |
+| stackit_ske_cluster_egress_address_range           | Egress CIDR address ranges used by the cluster. Always 1. Use `cidr` for value context               | Gauge | `project_id`, `cluster_name`, `cidr`                              |
 
-## Example Metric
+---
 
+## Example Metrics
+
+```promql
+stackit_ske_cluster_status_state_healthy{project_id="abc", cluster_name="f13-edu-dev"} 1
+stackit_ske_nodepool_machine_version_deprecated{project_id="abc", cluster_name="f13-edu-dev", nodepool_name="gpu-pool-l40s", image="ubuntu", version="2204.20250620.0"} 0
+stackit_ske_k8s_version_deprecated{project_id="abc", cluster_name="f13-edu-dev", k8s_version="1.32.5"} 1
+stackit_ske_nodepool_last_seen_timestamp{project_id="abc", cluster_name="f13-edu-dev", nodepool_name="default"} 1.75457e+09
 ```
-stackit_ske_k8s_version{project_id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",cluster_name="c1",cluster_version="1.31.10",state="supported"} 1
-stackit_ske_cluster_status{project_id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",cluster_name="c1",status="STATE_HEALTHY"} 1
-stackit_ske_cluster_error_status{project_id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",cluster_name="c1"} 0
-stackit_ske_nodepool_machine_types{project_id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx", cluster_name="c1", nodepool_name="np1", machine_type="c2i.8"} 1
-stackit_ske_nodepool_last_seen{project_id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",cluster_name="c1",nodepool_name="np1"} 1717093012
-```
+
+---
 
 ## Useful Queries
 
 - **Healthy clusters**:
   ```promql
-  stackit_ske_cluster_status{status="STATE_HEALTHY"} == 1
+  stackit_ske_cluster_status_state_healthy == 1
   ```
 
 - **Unhealthy clusters**:
   ```promql
-  stackit_ske_cluster_status{status!="STATE_HEALTHY"} == 1
+  stackit_ske_cluster_status_state_unhealthy == 1
   ```
 
 - **Clusters with errors**:
@@ -54,109 +60,88 @@ stackit_ske_nodepool_last_seen{project_id="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 
 - **Clusters with auto-update enabled**:
   ```promql
-  stackit_ske_maintenance_autoupdate_enabled == 1
+  stackit_ske_cluster_maintenance_autoupdate_enabled == 1
   ```
 
 - **Upcoming maintenance**:
   ```promql
-  stackit_ske_maintenance_window_start > time()
+  stackit_ske_cluster_maintenance_start_timestamp > time()
   ```
 
 - **Maintenance currently in progress**:
   ```promql
-  stackit_ske_maintenance_window_start <= time()
-  and stackit_ske_maintenance_window_end >= time()
+  stackit_ske_cluster_maintenance_start_timestamp <= time()
+  and stackit_ske_cluster_maintenance_end_timestamp >= time()
   ```
 
 - **Clusters by Kubernetes version**:
   ```promql
-  count by(cluster_version, state) (stackit_ske_k8s_version == 1)
+  count by(k8s_version) (stackit_ske_k8s_version_supported == 1)
   ```
 
-- **Node pools by machine image version**:
+- **Deprecated Kubernetes versions**:
   ```promql
-  count by(state) (stackit_ske_nodepool_machine_version == 1)
+  stackit_ske_k8s_version_deprecated == 1
   ```
 
-- **Node pools by volume size**:
+- **Nodepools using deprecated machine images**:
   ```promql
-  count by(volume_size) (stackit_ske_nodepool_volume_sizes_gb)
+  stackit_ske_nodepool_machine_version_deprecated == 1
+  and ignoring(image, version)
+    (time() - stackit_ske_nodepool_last_seen_timestamp < 600)
   ```
 
-- **Node pools by availability zone**:
+- **Nodepools by availability zone**:
   ```promql
-  count by(zone) (stackit_ske_nodepool_availability_zones == 1)
+  count by(zone) (stackit_ske_nodepool_availability_zone == 1)
   ```
 
-- **Clusters by CIDR**:
+- **Nodepools by volume size**:
   ```promql
-  count by(cidr) (stackit_ske_egress_address_ranges == 1)
+  count by(size_gb) (stackit_ske_nodepool_volume_size_gb)
   ```
+
+---
 
 ## Alerting Examples
 
 ```yaml
 - alert: SKEClusterUnhealthy
-  expr: stackit_ske_cluster_status{status!="STATE_HEALTHY"} == 1
+  expr: stackit_ske_cluster_status_state_unhealthy == 1
   for: 5m
   labels:
     severity: critical
   annotations:
-    summary: "Cluster {{ $labels.cluster_name }} is in an unhealthy state ({{ $labels.status }})."
-    description: "Cluster {{ $labels.cluster_name }} in project {{ $labels.project_id }} is not reporting a healthy status for at least 5 minutes."
-```
+    summary: "Cluster {{ $labels.cluster_name }} is in an unhealthy state."
+    description: "Cluster {{ $labels.cluster_name }} in project {{ $labels.project_id }} has reported an unhealthy status."
 
-```yaml
-- alert: SKEClusterErrorDetected
-  expr: stackit_ske_cluster_error_status == 1
-  for: 5m
-  labels:
-    severity: critical
-  annotations:
-    summary: "Cluster {{ $labels.cluster_name }} reports an error condition."
-    description: "Cluster {{ $labels.cluster_name }} in project {{ $labels.project_id }} is reporting one or more errors in its current status."
-```
-
-```yaml
-- alert: SKEMaintenancePlannedIn24H
-  expr: (stackit_ske_maintenance_window_start - time()) < 86400 and time() < stackit_ske_maintenance_window_start
+- alert: SKEMaintenancePlanned
+  expr: (stackit_ske_cluster_maintenance_start_timestamp - time()) < 86400
+        and stackit_ske_cluster_maintenance_start_timestamp > time()
   for: 5m
   labels:
     severity: warning
   annotations:
-    summary: "Maintenance is planned for cluster {{ $labels.cluster_name }} within 24 hours."
-    description: "Scheduled maintenance for cluster {{ $labels.cluster_name }} is beginning at {{ $labels.start_time }}."
-```
+    summary: "Scheduled maintenance within 24h for cluster {{ $labels.cluster_name }}"
+    description: "Cluster {{ $labels.cluster_name }} will begin maintenance within the next 24 hours."
 
-```yaml
-- alert: SKEMaintenanceInProgress
-  expr: (stackit_ske_maintenance_window_start <= time()) and (time() <= stackit_ske_maintenance_window_end)
-  for: 1m
-  labels:
-    severity: info
-  annotations:
-    summary: "Maintenance is in progress for cluster {{ $labels.cluster_name }}."
-    description: "Cluster {{ $labels.cluster_name }} is currently within its scheduled maintenance window."
-```
-
-```yaml
 - alert: DeprecatedKubernetesVersion
-  expr: stackit_ske_k8s_version{state!="supported"} == 1
+  expr: stackit_ske_k8s_version_deprecated == 1
   for: 10m
   labels:
     severity: warning
   annotations:
-    summary: "Cluster {{ $labels.cluster_name }} is using a {{ $labels.state }} Kubernetes version."
-    description: "The version {{ $labels.cluster_version }} is marked as {{ $labels.state }}. Consider upgrading your cluster {{ $labels.cluster_name }}."
-```
+    summary: "Deprecated Kubernetes version in use on cluster {{ $labels.cluster_name }}"
+    description: "Cluster {{ $labels.cluster_name }} is running deprecated K8s version {{ $labels.k8s_version }}."
 
-```yaml
 - alert: DeprecatedMachineImageVersion
-  expr: (stackit_ske_nodepool_machine_version{state!="supported"} == 1) and (stackit_ske_nodepool_last_seen{state!="supported"} > time() - 600)
+  expr: (stackit_ske_nodepool_machine_version_deprecated == 1)
+        and ignoring(image, version)
+            (time() - stackit_ske_nodepool_last_seen_timestamp < 600)
   for: 10m
   labels:
     severity: warning
   annotations:
-    summary: "Nodepool {{ $labels.nodepool_name }} is using a {{ $labels.state }} machine image."
-    description: "Nodepool {{ $labels.nodepool_name }} in cluster {{ $labels.cluster_name }} is running a machine image marked as '{{ $labels.state }}'. It was updated in the last 10 minutes, so this alert should be considered valid."
+    summary: "Deprecated machine image on nodepool {{ $labels.nodepool_name }}"
+    description: "Nodepool {{ $labels.nodepool_name }} in cluster {{ $labels.cluster_name }} is using a deprecated machine image '{{ $labels.version }}'."
 ```
