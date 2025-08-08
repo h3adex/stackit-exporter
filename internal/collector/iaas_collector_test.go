@@ -24,29 +24,43 @@ func mockMultipleServers() *[]iaas.Server {
 
 	return &[]iaas.Server{
 		{
-			Id:               mocks.Ptr("server1-id"),
-			Name:             mocks.Ptr("server-1"),
+			Id:            mocks.Ptr("server1-id"),
+			Name:          mocks.Ptr("server-1"),
+			AffinityGroup: mocks.Ptr("group1"),
+			BootVolume: &iaas.ServerGetBootVolumeRetType{
+				Id: mocks.Ptr("123"),
+			},
 			AvailabilityZone: mocks.Ptr("eu01-1"),
+			KeypairName:      mocks.Ptr("keypair1"),
 			MachineType:      mocks.Ptr("c1.2"),
+			ImageId:          mocks.Ptr("123"),
 			Status:           mocks.Ptr("ACTIVE"),
 			PowerStatus:      mocks.Ptr("RUNNING"),
 			MaintenanceWindow: &iaas.ServerMaintenance{
 				StartsAt: mocks.Ptr(start1),
 				EndsAt:   mocks.Ptr(end1),
 				Status:   mocks.Ptr("PLANNED"),
+				Details:  mocks.Ptr("cve-123"),
 			},
 		},
 		{
 			Id:               mocks.Ptr("server2-id"),
 			Name:             mocks.Ptr("server-2"),
 			AvailabilityZone: mocks.Ptr("eu01-2"),
-			MachineType:      mocks.Ptr("c1.4"),
-			Status:           mocks.Ptr("INACTIVE"),
-			PowerStatus:      mocks.Ptr("STOPPED"),
+			AffinityGroup:    mocks.Ptr("group2"),
+			ImageId:          mocks.Ptr("123"),
+			BootVolume: &iaas.ServerGetBootVolumeRetType{
+				Id: mocks.Ptr("123"),
+			},
+			KeypairName: mocks.Ptr("keypair2"),
+			MachineType: mocks.Ptr("c1.4"),
+			Status:      mocks.Ptr("INACTIVE"),
+			PowerStatus: mocks.Ptr("STOPPED"),
 			MaintenanceWindow: &iaas.ServerMaintenance{
 				StartsAt: mocks.Ptr(start2),
 				EndsAt:   mocks.Ptr(end2),
 				Status:   mocks.Ptr("ONGOING"),
+				Details:  mocks.Ptr("cve-123"),
 			},
 		},
 	}
@@ -61,6 +75,8 @@ func TestScrapeIaasAPI_PopulatesMetrics(t *testing.T) {
 
 	reg := metrics.NewIaasRegistry()
 	testRegistry := prometheus.NewRegistry()
+
+	require.NoError(t, testRegistry.Register(reg.ServerInfo))
 
 	// Register all metrics in the registry
 	for _, gaugeVec := range reg.MaintenanceStatus {
@@ -81,6 +97,10 @@ func TestScrapeIaasAPI_PopulatesMetrics(t *testing.T) {
 	collector.ScrapeIaasAPI(ctx, client, "", reg)
 
 	const expected = `
+# HELP stackit_server_info Unix time when the server was last seen by the exporter
+# TYPE stackit_server_info gauge
+stackit_server_info{affinity_group="group1",boot_volume_id="123",created_at="",image_id="123",keypair_name="keypair1",launched_at="",machine_type="c1.2",maintenance="PLANNED",maintenance_details="cve-123",name="server-1",project_id="",server_id="server1-id",zone="eu01-1"} 1
+stackit_server_info{affinity_group="group2",boot_volume_id="123",created_at="",image_id="123",keypair_name="keypair2",launched_at="",machine_type="c1.4",maintenance="ONGOING",maintenance_details="cve-123",name="server-2",project_id="",server_id="server2-id",zone="eu01-2"} 1
 # HELP stackit_server_maintenance_end_timestamp Unix time when the maintenance window ends
 # TYPE stackit_server_maintenance_end_timestamp gauge
 stackit_server_maintenance_end_timestamp{machine_type="c1.2",name="server-1",project_id="",server_id="server1-id",zone="eu01-1"} 1.7100036e+09
@@ -116,6 +136,7 @@ stackit_server_status_inactive{machine_type="c1.4",name="server-2",project_id=""
 `
 
 	err := testutil.GatherAndCompare(testRegistry, strings.NewReader(expected),
+		"stackit_server_info",
 		"stackit_server_status_active",
 		"stackit_server_status_inactive",
 		"stackit_server_power_running",
