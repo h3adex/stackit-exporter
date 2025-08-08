@@ -1,8 +1,6 @@
 package metrics
 
 import (
-	"time"
-
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -11,6 +9,7 @@ var (
 )
 
 type IaasRegistry struct {
+	ServerInfo        *prometheus.GaugeVec
 	ServerStatus      map[string]*prometheus.GaugeVec
 	PowerStatus       map[string]*prometheus.GaugeVec
 	MaintenanceStatus map[string]*prometheus.GaugeVec
@@ -21,6 +20,11 @@ type IaasRegistry struct {
 
 func NewIaasRegistry() *IaasRegistry {
 	r := &IaasRegistry{
+		ServerInfo: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "stackit_server_info",
+			Help: "Unix time when the server was last seen by the exporter",
+		}, []string{"project_id", "server_id", "name", "zone", "machine_type", "image_id", "keypair_name", "boot_volume_id", "affinity_group", "maintenance", "maintenance_details", "created_at", "launched_at"}),
+
 		ServerStatus:      make(map[string]*prometheus.GaugeVec),
 		PowerStatus:       make(map[string]*prometheus.GaugeVec),
 		MaintenanceStatus: make(map[string]*prometheus.GaugeVec),
@@ -42,6 +46,7 @@ func NewIaasRegistry() *IaasRegistry {
 	}
 
 	prometheus.MustRegister(
+		r.ServerInfo,
 		r.LastSeen,
 		r.MaintenanceStart,
 		r.MaintenanceEnd,
@@ -87,18 +92,8 @@ func NewIaasRegistry() *IaasRegistry {
 func (r *IaasRegistry) SetServerState(
 	status, powerStatus, maintenanceStatus string,
 	labels prometheus.Labels,
-	maintenanceStart, maintenanceEnd time.Time,
 ) {
 	SetOneHotStatus(r.ServerStatus, status, labels)
 	SetOneHotStatus(r.PowerStatus, powerStatus, labels)
 	SetOneHotStatus(r.MaintenanceStatus, maintenanceStatus, labels)
-
-	r.LastSeen.With(labels).SetToCurrentTime()
-
-	if !maintenanceStart.IsZero() {
-		r.MaintenanceStart.With(labels).Set(float64(maintenanceStart.Unix()))
-	}
-	if !maintenanceEnd.IsZero() {
-		r.MaintenanceEnd.With(labels).Set(float64(maintenanceEnd.Unix()))
-	}
 }
