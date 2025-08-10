@@ -27,7 +27,7 @@ The IaaS collector exposes metrics about STACKIT IaaS servers, including mainten
 ## Example Metrics
 
 ```promql
-stackit_server_info{project_id="abc", server_id="srv-1", name="web-1", zone="eu01-1", machine_type="c2.3", image_id="ubuntu-22.04", created_at="2024-05-01T11:14:00Z"} 1
+stackit_server_info{project_id="abc", server_id="srv-1", name="web-1", zone="eu01-1", machine_type="c2.3", image_id="123", created_at="2024-05-01T11:14:00Z"} 1
 stackit_server_power_running{project_id="abc", server_id="srv-1", name="web-1", zone="eu01-1", machine_type="c2.3"} 1
 stackit_server_status_active{project_id="abc", server_id="srv-1", name="web-1", zone="eu01-1", machine_type="c2.3"} 1
 stackit_server_power_stopped{project_id="abc", server_id="srv-2", name="batch", zone="eu01-1", machine_type="c2.3"} 1
