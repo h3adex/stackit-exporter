@@ -97,39 +97,39 @@ func TestScrapeIaasAPI_PopulatesMetrics(t *testing.T) {
 	collector.ScrapeIaasAPI(ctx, client, "", reg)
 
 	const expected = `
-# HELP stackit_server_info Unix time when the server was last seen by the exporter
+# HELP stackit_server_info Descriptive info about the server at export time. Set to 1 if present.
 # TYPE stackit_server_info gauge
-stackit_server_info{affinity_group="group1",boot_volume_id="123",created_at="",image_id="123",keypair_name="keypair1",launched_at="",machine_type="c1.2",maintenance="PLANNED",maintenance_details="cve-123",name="server-1",project_id="",server_id="server1-id",zone="eu01-1"} 1
-stackit_server_info{affinity_group="group2",boot_volume_id="123",created_at="",image_id="123",keypair_name="keypair2",launched_at="",machine_type="c1.4",maintenance="ONGOING",maintenance_details="cve-123",name="server-2",project_id="",server_id="server2-id",zone="eu01-2"} 1
-# HELP stackit_server_maintenance_end_timestamp Unix time when the maintenance window ends
+stackit_server_info{affinity_group="group1",boot_volume_id="123",created_at="",image_id="123",keypair_name="keypair1",launched_at="",machine_type="c1.2",maintenance="PLANNED",maintenance_details="cve-123",maintenance_status="PLANNED",name="server-1",power_status="RUNNING",project_id="",server_id="server1-id",server_status="ACTIVE",zone="eu01-1"} 1
+stackit_server_info{affinity_group="group2",boot_volume_id="123",created_at="",image_id="123",keypair_name="keypair2",launched_at="",machine_type="c1.4",maintenance="ONGOING",maintenance_details="cve-123",maintenance_status="ONGOING",name="server-2",power_status="STOPPED",project_id="",server_id="server2-id",server_status="INACTIVE",zone="eu01-2"} 1
+# HELP stackit_server_maintenance_end_timestamp Unix timestamp of maintenance end time
 # TYPE stackit_server_maintenance_end_timestamp gauge
 stackit_server_maintenance_end_timestamp{machine_type="c1.2",name="server-1",project_id="",server_id="server1-id",zone="eu01-1"} 1.7100036e+09
 stackit_server_maintenance_end_timestamp{machine_type="c1.4",name="server-2",project_id="",server_id="server2-id",zone="eu01-2"} 1.7100108e+09
-# HELP stackit_server_maintenance_start_timestamp Unix time when the maintenance window starts
-# TYPE stackit_server_maintenance_start_timestamp gauge
-stackit_server_maintenance_start_timestamp{machine_type="c1.2",name="server-1",project_id="",server_id="server1-id",zone="eu01-1"} 1.71e+09
-stackit_server_maintenance_start_timestamp{machine_type="c1.4",name="server-2",project_id="",server_id="server2-id",zone="eu01-2"} 1.7100072e+09
-# HELP stackit_server_maintenance_planned Binary state of maintenance status: 1 if PLANNED, else 0
-# TYPE stackit_server_maintenance_planned gauge
-stackit_server_maintenance_planned{machine_type="c1.2",name="server-1",project_id="",server_id="server1-id",zone="eu01-1"} 1
-stackit_server_maintenance_planned{machine_type="c1.4",name="server-2",project_id="",server_id="server2-id",zone="eu01-2"} 0
-# HELP stackit_server_maintenance_ongoing Binary state of maintenance status: 1 if ONGOING, else 0
+# HELP stackit_server_maintenance_ongoing Binary maintenance status. 1 if current state is ONGOING
 # TYPE stackit_server_maintenance_ongoing gauge
 stackit_server_maintenance_ongoing{machine_type="c1.2",name="server-1",project_id="",server_id="server1-id",zone="eu01-1"} 0
 stackit_server_maintenance_ongoing{machine_type="c1.4",name="server-2",project_id="",server_id="server2-id",zone="eu01-2"} 1
-# HELP stackit_server_power_running Binary state of power status: 1 if RUNNING, else 0
+# HELP stackit_server_maintenance_planned Binary maintenance status. 1 if current state is PLANNED
+# TYPE stackit_server_maintenance_planned gauge
+stackit_server_maintenance_planned{machine_type="c1.2",name="server-1",project_id="",server_id="server1-id",zone="eu01-1"} 1
+stackit_server_maintenance_planned{machine_type="c1.4",name="server-2",project_id="",server_id="server2-id",zone="eu01-2"} 0
+# HELP stackit_server_maintenance_start_timestamp Unix timestamp of maintenance start time
+# TYPE stackit_server_maintenance_start_timestamp gauge
+stackit_server_maintenance_start_timestamp{machine_type="c1.2",name="server-1",project_id="",server_id="server1-id",zone="eu01-1"} 1.71e+09
+stackit_server_maintenance_start_timestamp{machine_type="c1.4",name="server-2",project_id="",server_id="server2-id",zone="eu01-2"} 1.7100072e+09
+# HELP stackit_server_power_running Binary power status metric. 1 if current power state is RUNNING
 # TYPE stackit_server_power_running gauge
 stackit_server_power_running{machine_type="c1.2",name="server-1",project_id="",server_id="server1-id",zone="eu01-1"} 1
 stackit_server_power_running{machine_type="c1.4",name="server-2",project_id="",server_id="server2-id",zone="eu01-2"} 0
-# HELP stackit_server_power_stopped Binary state of power status: 1 if STOPPED, else 0
+# HELP stackit_server_power_stopped Binary power status metric. 1 if current power state is STOPPED
 # TYPE stackit_server_power_stopped gauge
-stackit_server_power_stopped{machine_type="c1.4",name="server-2",project_id="",server_id="server2-id",zone="eu01-2"} 1
 stackit_server_power_stopped{machine_type="c1.2",name="server-1",project_id="",server_id="server1-id",zone="eu01-1"} 0
-# HELP stackit_server_status_active Binary state of server status: 1 if ACTIVE, else 0
+stackit_server_power_stopped{machine_type="c1.4",name="server-2",project_id="",server_id="server2-id",zone="eu01-2"} 1
+# HELP stackit_server_status_active Binary server status metric. 1 if current state is ACTIVE
 # TYPE stackit_server_status_active gauge
 stackit_server_status_active{machine_type="c1.2",name="server-1",project_id="",server_id="server1-id",zone="eu01-1"} 1
 stackit_server_status_active{machine_type="c1.4",name="server-2",project_id="",server_id="server2-id",zone="eu01-2"} 0
-# HELP stackit_server_status_inactive Binary state of server status: 1 if INACTIVE, else 0
+# HELP stackit_server_status_inactive Binary server status metric. 1 if current state is INACTIVE
 # TYPE stackit_server_status_inactive gauge
 stackit_server_status_inactive{machine_type="c1.2",name="server-1",project_id="",server_id="server1-id",zone="eu01-1"} 0
 stackit_server_status_inactive{machine_type="c1.4",name="server-2",project_id="",server_id="server2-id",zone="eu01-2"} 1

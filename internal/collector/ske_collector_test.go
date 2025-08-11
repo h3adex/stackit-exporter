@@ -143,15 +143,12 @@ func TestScrapeSkeAPI_PopulatesMetrics(t *testing.T) {
 # HELP stackit_ske_cluster_creation_timestamp Unix timestamp when cluster was created
 # TYPE stackit_ske_cluster_creation_timestamp gauge
 stackit_ske_cluster_creation_timestamp{cluster_name="ske-mock-01",project_id=""} 1.744629614e+09
+# HELP stackit_ske_cluster_egress_address_range Egress IP range used by cluster
+# TYPE stackit_ske_cluster_egress_address_range gauge
+stackit_ske_cluster_egress_address_range{cidr="10.0.0.1/32",cluster_name="ske-mock-01",project_id=""} 1
 # HELP stackit_ske_cluster_error_status 1 if cluster has error
 # TYPE stackit_ske_cluster_error_status gauge
 stackit_ske_cluster_error_status{cluster_name="ske-mock-01",project_id=""} 0
-# HELP stackit_ske_cluster_status_state_healthy Cluster status: STATE_HEALTHY
-# TYPE stackit_ske_cluster_status_state_healthy gauge
-stackit_ske_cluster_status_state_healthy{cluster_name="ske-mock-01",project_id=""} 1
-# HELP stackit_ske_k8s_version_supported Kubernetes version state: supported
-# TYPE stackit_ske_k8s_version_supported gauge
-stackit_ske_k8s_version_supported{cluster_name="ske-mock-01",k8s_version="1.30.10",project_id=""} 1
 # HELP stackit_ske_cluster_maintenance_autoupdate_enabled 1 if autoupdate is enabled
 # TYPE stackit_ske_cluster_maintenance_autoupdate_enabled gauge
 stackit_ske_cluster_maintenance_autoupdate_enabled{cluster_name="ske-mock-01",project_id=""} 0
@@ -161,9 +158,12 @@ stackit_ske_cluster_maintenance_end_timestamp{cluster_name="ske-mock-01",project
 # HELP stackit_ske_cluster_maintenance_start_timestamp Start time of maintenance window
 # TYPE stackit_ske_cluster_maintenance_start_timestamp gauge
 stackit_ske_cluster_maintenance_start_timestamp{cluster_name="ske-mock-01",project_id=""} 1.71e+09
-# HELP stackit_ske_cluster_egress_address_range Egress IP range used by cluster
-# TYPE stackit_ske_cluster_egress_address_range gauge
-stackit_ske_cluster_egress_address_range{cidr="10.0.0.1/32",cluster_name="ske-mock-01",project_id=""} 1
+# HELP stackit_ske_cluster_status_state_healthy Cluster status: STATE_HEALTHY
+# TYPE stackit_ske_cluster_status_state_healthy gauge
+stackit_ske_cluster_status_state_healthy{cluster_name="ske-mock-01",project_id=""} 1
+# HELP stackit_ske_k8s_version_supported Kubernetes version state: supported
+# TYPE stackit_ske_k8s_version_supported gauge
+stackit_ske_k8s_version_supported{cluster_name="ske-mock-01",k8s_version="1.30.10",project_id=""} 1
 # HELP stackit_ske_nodepool_availability_zone Availability zones configured
 # TYPE stackit_ske_nodepool_availability_zone gauge
 stackit_ske_nodepool_availability_zone{cluster_name="ske-mock-01",nodepool_name="default-pool",project_id="",zone="eu01-01"} 1

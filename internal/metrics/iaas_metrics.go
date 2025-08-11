@@ -4,9 +4,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-var (
-	sharedLabels = []string{"project_id", "server_id", "name", "zone", "machine_type"}
-)
+var sharedIaasLabels = []string{"project_id", "server_id", "name", "zone", "machine_type"}
 
 type IaasRegistry struct {
 	ServerInfo        *prometheus.GaugeVec
@@ -22,29 +20,31 @@ func NewIaasRegistry() *IaasRegistry {
 	r := &IaasRegistry{
 		ServerInfo: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "stackit_server_info",
-			Help: "Unix time when the server was last seen by the exporter",
-		}, []string{"project_id", "server_id", "name", "zone", "machine_type", "image_id", "keypair_name", "boot_volume_id", "affinity_group", "maintenance", "maintenance_details", "created_at", "launched_at"}),
-
+			Help: "Descriptive info about the server at export time. Set to 1 if present.",
+		}, []string{
+			"project_id", "server_id", "name", "zone", "machine_type",
+			"power_status", "server_status", "maintenance_status",
+			"image_id", "keypair_name", "boot_volume_id", "affinity_group",
+			"maintenance", "maintenance_details", "created_at", "launched_at",
+		}),
 		ServerStatus:      make(map[string]*prometheus.GaugeVec),
 		PowerStatus:       make(map[string]*prometheus.GaugeVec),
 		MaintenanceStatus: make(map[string]*prometheus.GaugeVec),
-
 		LastSeen: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "stackit_server_last_seen_timestamp",
-			Help: "Unix time when the server was last seen by the exporter",
-		}, sharedLabels),
-
+			Help: "Unix timestamp when the server was last scraped",
+		}, sharedIaasLabels),
 		MaintenanceStart: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "stackit_server_maintenance_start_timestamp",
-			Help: "Unix time when the maintenance window starts",
-		}, sharedLabels),
-
+			Help: "Unix timestamp of maintenance start time",
+		}, sharedIaasLabels),
 		MaintenanceEnd: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "stackit_server_maintenance_end_timestamp",
-			Help: "Unix time when the maintenance window ends",
-		}, sharedLabels),
+			Help: "Unix timestamp of maintenance end time",
+		}, sharedIaasLabels),
 	}
 
+	// Register default metrics
 	prometheus.MustRegister(
 		r.ServerInfo,
 		r.LastSeen,
@@ -57,30 +57,30 @@ func NewIaasRegistry() *IaasRegistry {
 		name := "stackit_server_status_" + normalize(s)
 		vec := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: name,
-			Help: "Binary state of server status: 1 if " + s + ", else 0",
-		}, sharedLabels)
+			Help: "Binary server status metric. 1 if current state is " + s,
+		}, sharedIaasLabels)
 		r.ServerStatus[s] = vec
 		prometheus.MustRegister(vec)
 	}
 
-	// Server Power States
+	// Power States
 	for _, s := range []string{"RUNNING", "STOPPED", "CRASHED", "REBOOTING", "ERROR"} {
 		name := "stackit_server_power_" + normalize(s)
 		vec := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: name,
-			Help: "Binary state of power status: 1 if " + s + ", else 0",
-		}, sharedLabels)
+			Help: "Binary power status metric. 1 if current power state is " + s,
+		}, sharedIaasLabels)
 		r.PowerStatus[s] = vec
 		prometheus.MustRegister(vec)
 	}
 
-	// Server Maintenance States
+	// Maintenance States
 	for _, s := range []string{"PLANNED", "ONGOING"} {
 		name := "stackit_server_maintenance_" + normalize(s)
 		vec := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: name,
-			Help: "Binary state of maintenance status: 1 if " + s + ", else 0",
-		}, sharedLabels)
+			Help: "Binary maintenance status. 1 if current state is " + s,
+		}, sharedIaasLabels)
 		r.MaintenanceStatus[s] = vec
 		prometheus.MustRegister(vec)
 	}
@@ -88,11 +88,8 @@ func NewIaasRegistry() *IaasRegistry {
 	return r
 }
 
-// SetServerState updates all statuses for a server
-func (r *IaasRegistry) SetServerState(
-	status, powerStatus, maintenanceStatus string,
-	labels prometheus.Labels,
-) {
+// SetServerState sets the binary one-hot server status, power status, and maintenance status
+func (r *IaasRegistry) SetServerState(status, powerStatus, maintenanceStatus string, labels prometheus.Labels) {
 	SetOneHotStatus(r.ServerStatus, status, labels)
 	SetOneHotStatus(r.PowerStatus, powerStatus, labels)
 	SetOneHotStatus(r.MaintenanceStatus, maintenanceStatus, labels)

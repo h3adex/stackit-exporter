@@ -6,6 +6,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+// normalize replaces special characters in metric names
 func normalize(s string) string {
 	return strings.ToLower(strings.ReplaceAll(s, "-", "_"))
 }

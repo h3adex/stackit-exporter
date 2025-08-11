@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/h3adex/stackit-exporter/internal/metrics"
-	"github.com/h3adex/stackit-exporter/internal/utils"
 	"github.com/stackitcloud/stackit-sdk-go/services/iaas"
 )
 
@@ -17,7 +16,11 @@ type IaasClient interface {
 func ScrapeIaasAPI(ctx context.Context, client IaasClient, projectID string, registry *metrics.IaasRegistry) {
 	resp, err := client.ListServers(ctx, projectID).Execute()
 	if err != nil {
-		log.Printf("failed to fetch servers: %v", err)
+		log.Printf("failed to fetch IaaS servers: %v", err)
+		return
+	}
+	if resp == nil || resp.Items == nil {
+		log.Println("received nil or empty servers response")
 		return
 	}
 
@@ -36,62 +39,61 @@ func ScrapeIaasAPI(ctx context.Context, client IaasClient, projectID string, reg
 			"machine_type": *srv.MachineType,
 		}
 
-		var (
-			status             = ""
-			powerStatus        = ""
-			maintenanceStatus  = ""
-			maintenanceDetails = ""
-			maintenanceEnd     time.Time
-			maintenanceStart   time.Time
-		)
-
-		if srv.Status != nil {
-			status = *srv.Status
-		}
-
-		if srv.PowerStatus != nil {
-			powerStatus = *srv.PowerStatus
-		}
-
-		if mw := srv.MaintenanceWindow; mw != nil {
-			maintenanceStatus = *mw.Status
-			if mw.Details != nil {
-				maintenanceDetails = *mw.Details
-			}
-			if mw.StartsAt != nil {
-				maintenanceStart = mw.StartsAt.UTC()
-			}
-			if mw.EndsAt != nil {
-				maintenanceEnd = mw.EndsAt.UTC()
-			}
-		}
-
 		serverInfoLabels := make(map[string]string, len(labels))
 		for k, v := range labels {
 			serverInfoLabels[k] = v
 		}
 
-		serverInfoLabels["image_id"] = utils.SafeString(srv.ImageId)
-		serverInfoLabels["keypair_name"] = utils.SafeString(srv.KeypairName)
+		// Basic safe values for status fields
+		status := SafeString(srv.Status)
+		powerStatus := SafeString(srv.PowerStatus)
+		maintenanceStatus := ""
+		maintenanceDetails := ""
+		maintenanceStart := 0.0
+		maintenanceEnd := 0.0
+
+		serverInfoLabels["power_status"] = powerStatus
+		serverInfoLabels["server_status"] = status
+		serverInfoLabels["maintenance_status"] = ""
+		serverInfoLabels["image_id"] = SafeString(srv.ImageId)
+		serverInfoLabels["keypair_name"] = SafeString(srv.KeypairName)
 		serverInfoLabels["boot_volume_id"] = ""
+		serverInfoLabels["affinity_group"] = SafeString(srv.AffinityGroup)
+		serverInfoLabels["created_at"] = SafeTime(srv.CreatedAt)
+		serverInfoLabels["launched_at"] = SafeTime(srv.LaunchedAt)
+
 		if srv.BootVolume != nil && srv.BootVolume.Id != nil {
 			serverInfoLabels["boot_volume_id"] = *srv.BootVolume.Id
 		}
-		serverInfoLabels["affinity_group"] = utils.SafeString(srv.AffinityGroup)
+
+		// Maintenance info
+		if mw := srv.MaintenanceWindow; mw != nil {
+			maintenanceStatus = SafeString(mw.Status)
+			serverInfoLabels["maintenance_status"] = maintenanceStatus
+
+			if mw.Details != nil {
+				maintenanceDetails = *mw.Details
+			}
+			maintenanceStart = SafeTimeUnix(mw.StartsAt)
+			maintenanceEnd = SafeTimeUnix(mw.EndsAt)
+		}
+
 		serverInfoLabels["maintenance"] = maintenanceStatus
 		serverInfoLabels["maintenance_details"] = maintenanceDetails
-		serverInfoLabels["created_at"] = utils.SafeTime(srv.CreatedAt)
-		serverInfoLabels["launched_at"] = utils.SafeTime(srv.LaunchedAt)
 
+		// Set static metadata
 		registry.ServerInfo.With(serverInfoLabels).Set(1)
-		registry.LastSeen.With(labels).SetToCurrentTime()
-		if !maintenanceStart.IsZero() {
-			registry.MaintenanceStart.With(labels).Set(float64(maintenanceStart.Unix()))
+
+		// Time metrics
+		registry.LastSeen.With(labels).Set(float64(time.Now().Unix()))
+		if maintenanceStart > 0 {
+			registry.MaintenanceStart.With(labels).Set(maintenanceStart)
 		}
-		if !maintenanceEnd.IsZero() {
-			registry.MaintenanceEnd.With(labels).Set(float64(maintenanceEnd.Unix()))
+		if maintenanceEnd > 0 {
+			registry.MaintenanceEnd.With(labels).Set(maintenanceEnd)
 		}
 
+		// Set binary status values
 		registry.SetServerState(status, powerStatus, maintenanceStatus, labels)
 	}
 }
