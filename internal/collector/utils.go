@@ -40,19 +40,13 @@ func SafeTime(t *time.Time) string {
 	return ""
 }
 
-// SafeUnixTime returns a Unix timestamp (seconds since epoch) for *time.Time.
-// Returns 0 if the input is nil.
-func SafeUnixTime(t *time.Time) int64 {
-	if t != nil {
-		return t.UTC().Unix()
-	}
-	return 0
-}
-
 // SafeTimeUnix formats a *time.Time into float64 UNIX seconds for Prometheus metrics.
 // Returns 0.0 if the pointer is nil.
 func SafeTimeUnix(t *time.Time) float64 {
-	return float64(SafeUnixTime(t))
+	if t != nil {
+		return float64(t.UTC().Unix())
+	}
+	return 0
 }
 
 // SafeSlice safeguards iteration over possibly nil slices.
