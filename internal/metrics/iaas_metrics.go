@@ -4,93 +4,112 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-var sharedIaasLabels = []string{"project_id", "server_id", "name", "zone", "machine_type"}
+const (
+	LabelAffinityGroup     = "affinity_group"
+	LabelCreatedAt         = "created_at"
+	LabelImageID           = "image_id"
+	LabelKeypairName       = "keypair_name"
+	LabelLaunchedAt        = "launched_at"
+	LabelMachineType       = "machine_type"
+	LabelMaintenanceInfo   = "maintenance_details"
+	LabelMaintenanceStatus = "maintenance_status"
+	LabelName              = "name"
+	LabelPowerStatus       = "power_status"
+	LabelProjectID         = "project_id"
+	LabelServerID          = "server_id"
+	LabelServerStatus      = "server_status"
+	LabelStatus            = "status"
+	LabelZone              = "zone"
+)
 
-type IaasRegistry struct {
-	ServerInfo        *prometheus.GaugeVec
-	ServerStatus      map[string]*prometheus.GaugeVec
-	PowerStatus       map[string]*prometheus.GaugeVec
-	MaintenanceStatus map[string]*prometheus.GaugeVec
-	LastSeen          *prometheus.GaugeVec
-	MaintenanceStart  *prometheus.GaugeVec
-	MaintenanceEnd    *prometheus.GaugeVec
+// sharedIaasLabels are the base identifying labels for most server-related metrics.
+var sharedIaasLabels = []string{
+	LabelProjectID,
+	LabelServerID,
+	LabelName,
+	LabelZone,
+	LabelMachineType,
 }
 
+// infoLabels are all static/info labels exposed in stackit_server_info.
+var infoLabels = []string{
+	LabelProjectID,
+	LabelServerID,
+	LabelName,
+	LabelZone,
+	LabelMachineType,
+	LabelPowerStatus,
+	LabelServerStatus,
+	LabelMaintenanceStatus,
+	LabelImageID,
+	LabelKeypairName,
+	LabelAffinityGroup,
+	LabelCreatedAt,
+	LabelLaunchedAt,
+	LabelMaintenanceInfo,
+}
+
+// IaasRegistry holds all Prometheus metrics related to IaaS servers.
+type IaasRegistry struct {
+	ServerInfo        *prometheus.GaugeVec
+	ServerStatus      *prometheus.GaugeVec
+	ServerPowerStatus *prometheus.GaugeVec
+	MaintenanceStatus *prometheus.GaugeVec
+
+	ServerLastSeen   *prometheus.GaugeVec
+	MaintenanceStart *prometheus.GaugeVec
+	MaintenanceEnd   *prometheus.GaugeVec
+}
+
+// NewIaasRegistry creates and registers all server metrics.
 func NewIaasRegistry() *IaasRegistry {
 	r := &IaasRegistry{
 		ServerInfo: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "stackit_server_info",
-			Help: "Descriptive info about the server at export time. Set to 1 if present.",
-		}, []string{
-			"project_id", "server_id", "name", "zone", "machine_type",
-			"power_status", "server_status", "maintenance_status",
-			"image_id", "keypair_name", "boot_volume_id", "affinity_group",
-			"maintenance", "maintenance_details", "created_at", "launched_at",
-		}),
-		ServerStatus:      make(map[string]*prometheus.GaugeVec),
-		PowerStatus:       make(map[string]*prometheus.GaugeVec),
-		MaintenanceStatus: make(map[string]*prometheus.GaugeVec),
-		LastSeen: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Help: "Descriptive labels of the server at scrape time. Value is always 1.",
+		}, infoLabels),
+
+		ServerStatus: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "stackit_server_status",
+			Help: "Current status of the server. Possible status can be found here: https://docs.api.eu01.stackit.cloud/documentation/iaas/version/v1#tag/Servers/operation/v1ListServersInProject. Value is always 1.",
+		}, append(sharedIaasLabels, LabelStatus)),
+
+		ServerPowerStatus: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "stackit_server_power_status",
+			Help: "Current power state of the server. Possible status can be found here: https://docs.api.eu01.stackit.cloud/documentation/iaas/version/v1#tag/Servers/operation/v1ListServersInProject. Value is always 1.",
+		}, append(sharedIaasLabels, LabelStatus)),
+
+		MaintenanceStatus: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "stackit_server_maintenance_status",
+			Help: "Maintenance state of the server. Possible status can be found here: https://docs.api.eu01.stackit.cloud/documentation/iaas/version/v1#tag/Servers/operation/v1ListServersInProject. Value is always 1.",
+		}, append(sharedIaasLabels, LabelStatus)),
+
+		ServerLastSeen: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "stackit_server_last_seen_timestamp",
-			Help: "Unix timestamp when the server was last scraped",
+			Help: "Unix timestamp when the server was last seen during a scrape.",
 		}, sharedIaasLabels),
+
 		MaintenanceStart: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "stackit_server_maintenance_start_timestamp",
-			Help: "Unix timestamp of maintenance start time",
+			Help: "Unix timestamp for the start of a scheduled maintenance window.",
 		}, sharedIaasLabels),
+
 		MaintenanceEnd: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "stackit_server_maintenance_end_timestamp",
-			Help: "Unix timestamp of maintenance end time",
+			Help: "Unix timestamp for the end of a scheduled maintenance window.",
 		}, sharedIaasLabels),
 	}
 
-	// Register default metrics
+	// Register all metrics with Prometheus's default registry.
 	prometheus.MustRegister(
 		r.ServerInfo,
-		r.LastSeen,
+		r.ServerStatus,
+		r.ServerPowerStatus,
+		r.MaintenanceStatus,
+		r.ServerLastSeen,
 		r.MaintenanceStart,
 		r.MaintenanceEnd,
 	)
 
-	// Server Lifecycle States
-	for _, s := range []string{"ACTIVE", "INACTIVE", "CREATING", "DELETING", "REBUILDING", "ERROR"} {
-		name := "stackit_server_status_" + normalize(s)
-		vec := prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: name,
-			Help: "Binary server status metric. 1 if current state is " + s,
-		}, sharedIaasLabels)
-		r.ServerStatus[s] = vec
-		prometheus.MustRegister(vec)
-	}
-
-	// Power States
-	for _, s := range []string{"RUNNING", "STOPPED", "CRASHED", "REBOOTING", "ERROR"} {
-		name := "stackit_server_power_" + normalize(s)
-		vec := prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: name,
-			Help: "Binary power status metric. 1 if current power state is " + s,
-		}, sharedIaasLabels)
-		r.PowerStatus[s] = vec
-		prometheus.MustRegister(vec)
-	}
-
-	// Maintenance States
-	for _, s := range []string{"PLANNED", "ONGOING"} {
-		name := "stackit_server_maintenance_" + normalize(s)
-		vec := prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: name,
-			Help: "Binary maintenance status. 1 if current state is " + s,
-		}, sharedIaasLabels)
-		r.MaintenanceStatus[s] = vec
-		prometheus.MustRegister(vec)
-	}
-
 	return r
-}
-
-// SetServerState sets the binary one-hot server status, power status, and maintenance status
-func (r *IaasRegistry) SetServerState(status, powerStatus, maintenanceStatus string, labels prometheus.Labels) {
-	SetOneHotStatus(r.ServerStatus, status, labels)
-	SetOneHotStatus(r.PowerStatus, powerStatus, labels)
-	SetOneHotStatus(r.MaintenanceStatus, maintenanceStatus, labels)
 }

@@ -10,12 +10,12 @@ var sharedNodePoolLabels = []string{"project_id", "cluster_name", "nodepool_name
 type SKERegistry struct {
 	ClusterInfo *prometheus.GaugeVec
 
-	ClusterStatus       map[string]*prometheus.GaugeVec
+	ClusterStatus       *prometheus.GaugeVec
 	ClusterErrorStatus  *prometheus.GaugeVec
 	ClusterCreationTime *prometheus.GaugeVec
 	ClusterLastSeen     *prometheus.GaugeVec
 
-	K8sVersion map[string]*prometheus.GaugeVec
+	K8sVersion *prometheus.GaugeVec
 
 	MaintenanceAutoUpdate  *prometheus.GaugeVec
 	MaintenanceWindowStart *prometheus.GaugeVec
@@ -23,7 +23,7 @@ type SKERegistry struct {
 
 	EgressAddressRanges *prometheus.GaugeVec
 
-	NodePoolMachineVersion    map[string]*prometheus.GaugeVec
+	NodePoolMachineVersion    *prometheus.GaugeVec
 	NodePoolMachineTypes      *prometheus.GaugeVec
 	NodePoolVolumeSizes       *prometheus.GaugeVec
 	NodePoolAvailabilityZones *prometheus.GaugeVec
@@ -31,37 +31,6 @@ type SKERegistry struct {
 }
 
 func NewSKERegistry() *SKERegistry {
-	statuses := []string{"STATE_HEALTHY", "STATE_UNHEALTHY", "STATE_HIBERNATED", "STATE_UNSPECIFIED", "STATE_DELETING"}
-	k8sStates := []string{"deprecated", "supported", "preview"}
-	imageStates := []string{"deprecated", "supported", "preview"}
-
-	clusterStatus := make(map[string]*prometheus.GaugeVec)
-	for _, status := range statuses {
-		s := normalize(status)
-		clusterStatus[s] = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "stackit_ske_cluster_status_" + s,
-			Help: "Cluster status: " + status,
-		}, sharedClusterLabels)
-	}
-
-	k8sVersion := make(map[string]*prometheus.GaugeVec)
-	for _, state := range k8sStates {
-		s := normalize(state)
-		k8sVersion[s] = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "stackit_ske_k8s_version_" + s,
-			Help: "Kubernetes version state: " + state,
-		}, append(sharedClusterLabels, "k8s_version"))
-	}
-
-	nodePoolVersions := make(map[string]*prometheus.GaugeVec)
-	for _, state := range imageStates {
-		s := normalize(state)
-		nodePoolVersions[s] = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Name: "stackit_ske_nodepool_machine_version_" + s,
-			Help: "Machine image state: " + state,
-		}, append(sharedNodePoolLabels, "image", "version"))
-	}
-
 	reg := &SKERegistry{
 		ClusterInfo: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
@@ -76,7 +45,10 @@ func NewSKERegistry() *SKERegistry {
 				"observability_instance_id", "pod_address_ranges", "status",
 			},
 		),
-		ClusterStatus: clusterStatus,
+		ClusterStatus: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "stackit_ske_cluster_status",
+			Help: "Cluster status: ",
+		}, append(sharedClusterLabels, "status")),
 		ClusterErrorStatus: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "stackit_ske_cluster_error_status",
 			Help: "1 if cluster has error",
@@ -89,7 +61,10 @@ func NewSKERegistry() *SKERegistry {
 			Name: "stackit_ske_cluster_last_seen_timestamp",
 			Help: "Last observed timestamp",
 		}, sharedClusterLabels),
-		K8sVersion: k8sVersion,
+		K8sVersion: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "stackit_ske_k8s_version",
+			Help: "Kubernetes version state",
+		}, append(sharedClusterLabels, "k8s_version", "status")),
 		MaintenanceAutoUpdate: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "stackit_ske_cluster_maintenance_autoupdate_enabled",
 			Help: "1 if autoupdate is enabled",
@@ -106,7 +81,10 @@ func NewSKERegistry() *SKERegistry {
 			Name: "stackit_ske_cluster_egress_address_range",
 			Help: "Egress IP range used by cluster",
 		}, append(sharedClusterLabels, "cidr")),
-		NodePoolMachineVersion: nodePoolVersions,
+		NodePoolMachineVersion: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "stackit_ske_nodepool_machine_version",
+			Help: "Machine image state: ",
+		}, append(sharedNodePoolLabels, "image", "version", "status")),
 		NodePoolMachineTypes: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Name: "stackit_ske_nodepool_machine_type",
 			Help: "Type of machine used",
@@ -125,25 +103,18 @@ func NewSKERegistry() *SKERegistry {
 		}, sharedNodePoolLabels),
 	}
 
-	// Register all metrics
-	for _, vec := range reg.ClusterStatus {
-		prometheus.MustRegister(vec)
-	}
-	for _, vec := range reg.K8sVersion {
-		prometheus.MustRegister(vec)
-	}
-	for _, vec := range reg.NodePoolMachineVersion {
-		prometheus.MustRegister(vec)
-	}
 	prometheus.MustRegister(
 		reg.ClusterInfo,
+		reg.ClusterStatus,
 		reg.ClusterErrorStatus,
 		reg.ClusterCreationTime,
 		reg.ClusterLastSeen,
+		reg.K8sVersion,
 		reg.MaintenanceAutoUpdate,
 		reg.MaintenanceWindowStart,
 		reg.MaintenanceWindowEnd,
 		reg.EgressAddressRanges,
+		reg.NodePoolMachineVersion,
 		reg.NodePoolMachineTypes,
 		reg.NodePoolVolumeSizes,
 		reg.NodePoolAvailabilityZones,

@@ -65,3 +65,12 @@ func SafeJoin(values *[]string) string {
 	}
 	return strings.Join(*values, ",")
 }
+
+// CopyMap clones a string map to avoid mutation.
+func CopyMap(m map[string]string) map[string]string {
+	clone := make(map[string]string, len(m)+1)
+	for k, v := range m {
+		clone[k] = v
+	}
+	return clone
+}

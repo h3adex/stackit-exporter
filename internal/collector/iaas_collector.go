@@ -6,94 +6,90 @@ import (
 	"time"
 
 	"github.com/h3adex/stackit-exporter/internal/metrics"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stackitcloud/stackit-sdk-go/services/iaas"
 )
 
+// IaasClient defines the ability to list IaaS servers for a project.
 type IaasClient interface {
 	ListServers(ctx context.Context, projectID string) iaas.ApiListServersRequest
 }
 
+// ScrapeIaasAPI collects VM metrics from a project and exports them via Prometheus.
 func ScrapeIaasAPI(ctx context.Context, client IaasClient, projectID string, registry *metrics.IaasRegistry) {
 	resp, err := client.ListServers(ctx, projectID).Execute()
-	if err != nil {
-		log.Printf("failed to fetch IaaS servers: %v", err)
-		return
-	}
-	if resp == nil || resp.Items == nil {
-		log.Println("received nil or empty servers response")
+	if err != nil || resp == nil || resp.Items == nil {
+		log.Printf("failed to fetch IaaS servers for project %s: %v", projectID, err)
 		return
 	}
 
-	for i := range *resp.Items {
-		srv := &(*resp.Items)[i]
-
+	for _, srv := range *resp.Items {
 		if srv.Id == nil || srv.Name == nil || srv.AvailabilityZone == nil || srv.MachineType == nil {
+			log.Printf("skipping server with missing required metadata: %+v", srv)
 			continue
 		}
 
-		labels := map[string]string{
-			"project_id":   projectID,
-			"server_id":    *srv.Id,
-			"name":         *srv.Name,
-			"zone":         *srv.AvailabilityZone,
-			"machine_type": *srv.MachineType,
-		}
+		basicLabel := basicLabels(projectID, srv)
+		serverInfoLabels := enrichLabels(basicLabel, srv)
 
-		serverInfoLabels := make(map[string]string, len(labels))
-		for k, v := range labels {
-			serverInfoLabels[k] = v
-		}
-
-		// Basic safe values for status fields
-		status := SafeString(srv.Status)
-		powerStatus := SafeString(srv.PowerStatus)
-		maintenanceStatus := ""
-		maintenanceDetails := ""
-		maintenanceStart := 0.0
-		maintenanceEnd := 0.0
-
-		serverInfoLabels["power_status"] = powerStatus
-		serverInfoLabels["server_status"] = status
-		serverInfoLabels["maintenance_status"] = ""
-		serverInfoLabels["image_id"] = SafeString(srv.ImageId)
-		serverInfoLabels["keypair_name"] = SafeString(srv.KeypairName)
-		serverInfoLabels["boot_volume_id"] = ""
-		serverInfoLabels["affinity_group"] = SafeString(srv.AffinityGroup)
-		serverInfoLabels["created_at"] = SafeTime(srv.CreatedAt)
-		serverInfoLabels["launched_at"] = SafeTime(srv.LaunchedAt)
-
-		if srv.BootVolume != nil && srv.BootVolume.Id != nil {
-			serverInfoLabels["boot_volume_id"] = *srv.BootVolume.Id
-		}
-
-		// Maintenance info
-		if mw := srv.MaintenanceWindow; mw != nil {
-			maintenanceStatus = SafeString(mw.Status)
-			serverInfoLabels["maintenance_status"] = maintenanceStatus
-
-			if mw.Details != nil {
-				maintenanceDetails = *mw.Details
-			}
-			maintenanceStart = SafeTimeUnix(mw.StartsAt)
-			maintenanceEnd = SafeTimeUnix(mw.EndsAt)
-		}
-
-		serverInfoLabels["maintenance"] = maintenanceStatus
-		serverInfoLabels["maintenance_details"] = maintenanceDetails
-
-		// Set static metadata
 		registry.ServerInfo.With(serverInfoLabels).Set(1)
+		setStatusMetric(registry.ServerPowerStatus, basicLabel, serverInfoLabels[metrics.LabelPowerStatus])
+		setStatusMetric(registry.ServerStatus, basicLabel, serverInfoLabels[metrics.LabelServerStatus])
+		setStatusMetric(registry.MaintenanceStatus, basicLabel, serverInfoLabels[metrics.LabelMaintenanceStatus])
 
-		// Time metrics
-		registry.LastSeen.With(labels).Set(float64(time.Now().Unix()))
-		if maintenanceStart > 0 {
-			registry.MaintenanceStart.With(labels).Set(maintenanceStart)
-		}
-		if maintenanceEnd > 0 {
-			registry.MaintenanceEnd.With(labels).Set(maintenanceEnd)
-		}
+		// Last seen timestamp.
+		registry.ServerLastSeen.With(basicLabel).Set(float64(time.Now().Unix()))
 
-		// Set binary status values
-		registry.SetServerState(status, powerStatus, maintenanceStatus, labels)
+		// Maintenance window metrics.
+		if mw := srv.MaintenanceWindow; mw != nil {
+			if start := SafeTimeUnix(mw.StartsAt); start > 0 {
+				registry.MaintenanceStart.With(basicLabel).Set(start)
+			}
+			if end := SafeTimeUnix(mw.EndsAt); end > 0 {
+				registry.MaintenanceEnd.With(basicLabel).Set(end)
+			}
+		}
 	}
+}
+
+// basicLabels returns the minimal label set for a VM.
+func basicLabels(projectID string, s iaas.Server) map[string]string {
+	return map[string]string{
+		metrics.LabelProjectID:   projectID,
+		metrics.LabelServerID:    *s.Id,
+		metrics.LabelName:        *s.Name,
+		metrics.LabelZone:        *s.AvailabilityZone,
+		metrics.LabelMachineType: *s.MachineType,
+	}
+}
+
+// enrichLabels adds extended static fields as labels for server_info.
+func enrichLabels(base map[string]string, s iaas.Server) map[string]string {
+	labels := CopyMap(base)
+
+	labels[metrics.LabelPowerStatus] = SafeString(s.PowerStatus)
+	labels[metrics.LabelServerStatus] = SafeString(s.Status)
+	labels[metrics.LabelImageID] = SafeString(s.ImageId)
+	labels[metrics.LabelKeypairName] = SafeString(s.KeypairName)
+	labels[metrics.LabelAffinityGroup] = SafeString(s.AffinityGroup)
+	labels[metrics.LabelCreatedAt] = SafeTime(s.CreatedAt)
+	labels[metrics.LabelLaunchedAt] = SafeTime(s.LaunchedAt)
+
+	// Maintenance
+	if mw := s.MaintenanceWindow; mw != nil {
+		labels[metrics.LabelMaintenanceStatus] = SafeString(mw.Status)
+		labels[metrics.LabelMaintenanceInfo] = SafeString(mw.Details)
+	} else {
+		labels[metrics.LabelMaintenanceStatus] = ""
+		labels[metrics.LabelMaintenanceInfo] = ""
+	}
+
+	return labels
+}
+
+// setStatusMetric sets a label-based state metric.
+func setStatusMetric(metric *prometheus.GaugeVec, base map[string]string, state string) {
+	labels := CopyMap(base)
+	labels[metrics.LabelStatus] = state
+	metric.With(labels).Set(1)
 }

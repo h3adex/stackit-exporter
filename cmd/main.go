@@ -78,7 +78,7 @@ func main() {
 
 	manager := NewManager(ctx, cfg.ProjectID, cfg.Region, iaasClient, skeClient)
 
-	go manager.Run(10 * time.Second)
+	go manager.Run(2 * time.Second)
 
 	// Set up HTTP handlers for metrics and health checks
 	http.Handle("/metrics", promhttp.Handler())
