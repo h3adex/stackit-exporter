@@ -2,6 +2,16 @@ apiVersion: v1
 entries:
   stackit-exporter:
   - apiVersion: v2
+    appVersion: 0.0.8-dev
+    created: "2025-08-12T12:47:02.635738772Z"
+    description: A Helm chart for prometheus stackit exporter
+    digest: 5c1c2742bf3b1a82a180db2d410b42878eb688eac1f265c7fdfd028d53791c7d
+    name: stackit-exporter
+    type: application
+    urls:
+    - https://github.com/h3adex/stackit-exporter/releases/download/stackit-exporter-helm-0.0.8-dev/stackit-exporter-0.0.8-dev.tgz
+    version: 0.0.8-dev
+  - apiVersion: v2
     appVersion: 0.0.7
     created: "2025-08-08T12:12:53.652475544Z"
     description: A Helm chart for prometheus stackit exporter
@@ -61,4 +71,4 @@ entries:
     urls:
     - https://github.com/h3adex/stackit-exporter/releases/download/stackit-exporter-helm-0.0.2/stackit-exporter-0.0.2.tgz
     version: 0.0.2
-generated: "2025-08-08T12:12:53.652498687Z"
+generated: "2025-08-12T12:47:02.635772335Z"
