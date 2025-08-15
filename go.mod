@@ -5,7 +5,7 @@ go 1.24.5
 require (
 	github.com/prometheus/client_golang v1.23.0
 	github.com/stackitcloud/stackit-sdk-go/core v0.17.3
-	github.com/stackitcloud/stackit-sdk-go/services/iaas v0.29.0
+	github.com/stackitcloud/stackit-sdk-go/services/iaas v0.29.1
 	github.com/stackitcloud/stackit-sdk-go/services/ske v1.3.0
 	github.com/stretchr/testify v1.10.0
 )
